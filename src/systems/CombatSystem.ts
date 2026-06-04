@@ -1,17 +1,11 @@
-import type { MageStats, EnemyInstance } from '../types/game'
-
-export interface CombatResult {
-  damageToEnemy: number
-  damageToMage: number
-}
+import type { MageStats } from '../types/game'
 
 export const CombatSystem = {
   mageAttack(stats: MageStats): number {
     return stats.damage
   },
 
-  enemyAttack(enemy: EnemyInstance, mageReduction: number): number {
-    const raw = enemy.damage
-    return Math.max(1, raw - mageReduction)
+  enemyAttack(enemyDamage: number, mageReduction: number): number {
+    return Math.max(1, enemyDamage - mageReduction)
   },
 }

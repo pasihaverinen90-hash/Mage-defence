@@ -25,4 +25,16 @@ export const BALANCE = {
     enemiesPerWave: 3,
     bossEnemiesPerWave: 1,
   },
+  arena: {
+    mageX: 100,      // mage stands near the left
+    laneY: 210,      // vertical centre of the lane
+    spawnX: 760,     // enemies spawn near the right
+    meleeX: 185,     // enemies stop here and attack the mage
+    laneJitter: 26,  // +/- vertical spread so enemies don't fully overlap
+  },
+  spawn: {
+    intervalSeconds: 1.2,      // delay between enemy spawns within a wave
+    initialDelaySeconds: 0.4,  // delay before the first enemy of a wave
+    interWaveSeconds: 0.6,     // pause between clearing a wave and the next
+  },
 }

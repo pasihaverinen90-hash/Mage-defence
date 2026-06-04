@@ -4,41 +4,59 @@ import { UpgradeSystem } from '../../systems/UpgradeSystem'
 import { WaveSystem } from '../../systems/WaveSystem'
 import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
-import type { MageStats, EnemyInstance } from '../../types/game'
+import { BALANCE } from '../../data/balance'
+import type { MageStats, EnemyDefinition, RunEnemy } from '../../types/game'
 
 const W = 800
+
+const MAGE_X = BALANCE.arena.mageX
+const LANE_Y = BALANCE.arena.laneY
+const SPAWN_X = BALANCE.arena.spawnX
+const MELEE_X = BALANCE.arena.meleeX
+const FLOOR_TOP = 95
+const FLOOR_BOTTOM = 325
 
 interface RunState {
   mageHp: number
   mageStats: MageStats
   wave: number
   killCount: number
-  enemyQueue: EnemyInstance[]
-  currentEnemy: EnemyInstance | null
+  enemiesToSpawn: EnemyDefinition[]
+  spawnTimer: number
   mageAttackTimer: number
-  enemyAttackTimer: number
   speed: number
   running: boolean
   finished: boolean
+  betweenWaves: boolean
+}
+
+// Visual representation of one lane enemy.
+interface EnemyView {
+  container: Phaser.GameObjects.Container
+  emoji: Phaser.GameObjects.Text
+  hpFill: Phaser.GameObjects.Rectangle
+  barWidth: number
 }
 
 export class RunScene extends Phaser.Scene {
   private run!: RunState
+  private activeEnemies: RunEnemy[] = []
+  private views: Map<string, EnemyView> = new Map()
+  private nextEnemyId = 0
 
   // UI refs
   private waveText!: Phaser.GameObjects.Text
   private killText!: Phaser.GameObjects.Text
-  private mageHpBar!: Phaser.GameObjects.Graphics
-  private enemyHpBar!: Phaser.GameObjects.Graphics
+  private bestText!: Phaser.GameObjects.Text
+  private mageSprite!: Phaser.GameObjects.Text
+  private mageHpFill!: Phaser.GameObjects.Rectangle
   private mageHpText!: Phaser.GameObjects.Text
-  private enemyHpText!: Phaser.GameObjects.Text
-  private mageCard!: Phaser.GameObjects.Text
-  private enemyCard!: Phaser.GameObjects.Text
-  private enemyNameText!: Phaser.GameObjects.Text
+  private mageStatsText!: Phaser.GameObjects.Text
   private combatLog!: Phaser.GameObjects.Text
   private speedBtn!: Phaser.GameObjects.Text
   private logLines: string[] = []
-  private flashGfx!: Phaser.GameObjects.Graphics
+
+  private readonly mageBarWidth = 220
 
   constructor() {
     super({ key: 'RunScene' })
@@ -47,6 +65,9 @@ export class RunScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor('#0a0a14')
     this.logLines = []
+    this.activeEnemies = []
+    this.views.clear()
+    this.nextEnemyId = 0
 
     const stats = UpgradeSystem.computeMageStats(gameState.upgradeLevels)
 
@@ -55,13 +76,13 @@ export class RunScene extends Phaser.Scene {
       mageStats: stats,
       wave: 1,
       killCount: 0,
-      enemyQueue: [],
-      currentEnemy: null,
-      mageAttackTimer: 0,
-      enemyAttackTimer: 0,
+      enemiesToSpawn: [],
+      spawnTimer: 0,
+      mageAttackTimer: stats.castInterval,
       speed: 1,
       running: true,
       finished: false,
+      betweenWaves: false,
     }
 
     this.buildUI()
@@ -70,170 +91,283 @@ export class RunScene extends Phaser.Scene {
 
   // ── Build static UI ──────────────────────────────────────
   private buildUI() {
-    // Header bar
+    // Header
     this.drawPanel(0, 0, W, 50, '#0f0f1f')
-    this.add.text(20, 14, '⚔ ARENA RUN', {
+    this.add.text(20, 14, '⚔ ARENA', {
       fontSize: '18px', color: '#a78bfa', fontFamily: 'monospace',
     })
     this.waveText = this.add.text(W / 2, 14, '', {
       fontSize: '18px', color: '#f9fafb', fontFamily: 'monospace',
     }).setOrigin(0.5, 0)
-    this.killText = this.add.text(W - 20, 14, '', {
+
+    // Controls strip
+    this.drawPanel(0, 50, W, 40, '#0d0d18')
+    this.killText = this.add.text(20, 62, '', {
       fontSize: '14px', color: '#9ca3af', fontFamily: 'monospace',
-    }).setOrigin(1, 0)
-
-    // ── Mage card ────────────────────────────────────────
-    this.drawPanel(30, 70, 200, 220, '#111827')
-    this.add.text(40, 80, '🧙 MAGE', {
-      fontSize: '14px', color: '#a78bfa', fontFamily: 'monospace',
     })
-    this.mageCard = this.add.text(40, 102, '', {
-      fontSize: '12px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4,
+    this.bestText = this.add.text(200, 62, '', {
+      fontSize: '14px', color: '#6b7280', fontFamily: 'monospace',
     })
 
-    // Mage HP bar background
-    const mageBarBg = this.add.graphics()
-    mageBarBg.fillStyle(0x374151, 1)
-    mageBarBg.fillRoundedRect(40, 220, 180, 14, 4)
-
-    this.mageHpBar = this.add.graphics()
-    this.mageHpText = this.add.text(130, 220, '', {
-      fontSize: '10px', color: '#f9fafb', fontFamily: 'monospace',
-    }).setOrigin(0.5, 0)
-
-    // ── Enemy card ───────────────────────────────────────
-    this.drawPanel(570, 70, 200, 220, '#111827')
-    this.enemyNameText = this.add.text(580, 80, '', {
-      fontSize: '14px', color: '#f87171', fontFamily: 'monospace',
-    })
-    this.enemyCard = this.add.text(580, 102, '', {
-      fontSize: '12px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4,
-    })
-
-    const enemyBarBg = this.add.graphics()
-    enemyBarBg.fillStyle(0x374151, 1)
-    enemyBarBg.fillRoundedRect(580, 220, 180, 14, 4)
-
-    this.enemyHpBar = this.add.graphics()
-    this.enemyHpText = this.add.text(670, 220, '', {
-      fontSize: '10px', color: '#f9fafb', fontFamily: 'monospace',
-    }).setOrigin(0.5, 0)
-
-    // ── VS divider ───────────────────────────────────────
-    this.add.text(W / 2, 170, 'VS', {
-      fontSize: '28px', color: '#4b5563', fontFamily: 'monospace',
-    }).setOrigin(0.5)
-
-    // ── Combat log panel ─────────────────────────────────
-    this.drawPanel(30, 310, 540, 180, '#0d1117')
-    this.add.text(40, 318, 'COMBAT LOG', {
-      fontSize: '11px', color: '#6b7280', fontFamily: 'monospace',
-    })
-    this.combatLog = this.add.text(40, 334, '', {
-      fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace', lineSpacing: 3,
-    })
-
-    // ── Speed button ─────────────────────────────────────
-    this.speedBtn = this.add.text(680, 350, ' ⚡ x1 ', {
+    this.speedBtn = this.add.text(560, 70, ' ⚡ x1 ', {
       fontSize: '15px', color: '#fbbf24', fontFamily: 'monospace',
-      backgroundColor: '#1c1917', padding: { x: 10, y: 6 },
+      backgroundColor: '#1c1917', padding: { x: 10, y: 5 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-
     this.speedBtn.on('pointerdown', () => this.toggleSpeed())
     this.speedBtn.on('pointerover', () => this.speedBtn.setAlpha(0.8))
     this.speedBtn.on('pointerout', () => this.speedBtn.setAlpha(1))
 
-    // ── End Run button ───────────────────────────────────
-    const endBtn = this.add.text(680, 430, ' 🏁 End Run ', {
+    const endBtn = this.add.text(685, 70, ' 🏁 End Run ', {
       fontSize: '15px', color: '#f87171', fontFamily: 'monospace',
-      backgroundColor: '#1a0000', padding: { x: 10, y: 6 },
+      backgroundColor: '#1a0000', padding: { x: 10, y: 5 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-
     endBtn.on('pointerdown', () => this.endRun('You ended the run.'))
     endBtn.on('pointerover', () => endBtn.setAlpha(0.8))
     endBtn.on('pointerout', () => endBtn.setAlpha(1))
 
-    // Flash overlay for hits
-    this.flashGfx = this.add.graphics()
-    this.flashGfx.setAlpha(0)
+    // Arena floor (the lane)
+    this.drawPanel(20, FLOOR_TOP, 760, FLOOR_BOTTOM - FLOOR_TOP, '#0c1320')
+    // Mage "ground line" marker
+    const marker = this.add.graphics()
+    marker.lineStyle(1, 0x1f2937, 1)
+    marker.lineBetween(MELEE_X + 20, FLOOR_TOP + 8, MELEE_X + 20, FLOOR_BOTTOM - 8)
 
-    this.updateMageCard()
+    // Mage on the lane
+    this.mageSprite = this.add.text(MAGE_X, LANE_Y, '🧙', {
+      fontSize: '46px',
+    }).setOrigin(0.5)
+
+    // ── Mage status panel (bottom-left) ──────────────────
+    this.drawPanel(20, 335, 360, 250, '#111827')
+    this.add.text(35, 348, '🧙 MAGE', {
+      fontSize: '15px', color: '#a78bfa', fontFamily: 'monospace',
+    })
+    this.add.rectangle(35, 378, this.mageBarWidth, 16, 0x374151).setOrigin(0, 0)
+    this.mageHpFill = this.add.rectangle(35, 378, this.mageBarWidth, 16, 0x22c55e).setOrigin(0, 0)
+    this.mageHpText = this.add.text(35 + this.mageBarWidth / 2, 386, '', {
+      fontSize: '11px', color: '#f9fafb', fontFamily: 'monospace',
+    }).setOrigin(0.5)
+    this.mageStatsText = this.add.text(35, 410, '', {
+      fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 5,
+    })
+
+    // ── Combat log panel (bottom-right) ──────────────────
+    this.drawPanel(400, 335, 380, 250, '#0d1117')
+    this.add.text(415, 348, 'COMBAT LOG', {
+      fontSize: '11px', color: '#6b7280', fontFamily: 'monospace',
+    })
+    this.combatLog = this.add.text(415, 372, '', {
+      fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace', lineSpacing: 4,
+    })
+
+    this.updateMageUI()
+    this.killText.setText('Kills: 0')
+    this.bestText.setText(`Best: ${gameState.highestWaveEver}`)
   }
 
-  // ── Wave management ──────────────────────────────────────
+  // ── Wave / spawn management ──────────────────────────────
   private startWave(wave: number) {
     this.run.wave = wave
-    this.run.enemyQueue = WaveSystem.getEnemiesForWave(wave)
-    this.run.currentEnemy = null
-    this.run.mageAttackTimer = this.run.mageStats.castInterval
-    this.run.enemyAttackTimer = 0
+    this.run.betweenWaves = false
+    this.run.enemiesToSpawn = WaveSystem.getSpawnPlanForWave(wave)
+    this.run.spawnTimer = BALANCE.spawn.initialDelaySeconds
 
     const isBoss = WaveSystem.isBossWave(wave)
-    this.waveText.setText(`Wave ${wave}${isBoss ? ' 👹 BOSS' : ''}`)
-    this.log(`── Wave ${wave} begins${isBoss ? ' [BOSS WAVE]' : ''} ──`)
-
-    this.spawnNextEnemy()
+    this.waveText.setText(`Wave ${wave}${isBoss ? '  👹 BOSS' : ''}`)
+    this.log(`── Wave ${wave}${isBoss ? ' [BOSS]' : ''} ──`)
   }
 
   private spawnNextEnemy() {
-    if (this.run.enemyQueue.length === 0) {
-      // Wave cleared — advance
-      this.log(`✓ Wave ${this.run.wave} cleared!`)
-      this.time.delayedCall(400 / this.run.speed, () => {
-        if (this.run.running) this.startWave(this.run.wave + 1)
-      })
-      return
-    }
-    this.run.currentEnemy = this.run.enemyQueue.shift()!
-    this.run.enemyAttackTimer = this.run.currentEnemy.attackInterval
-    this.log(`👹 ${this.run.currentEnemy.definition.name} appears! (HP: ${this.run.currentEnemy.hp})`)
-    this.updateEnemyCard()
+    const def = this.run.enemiesToSpawn.shift()
+    if (!def) return
+
+    const id = `e${this.nextEnemyId++}`
+    const jitter = BALANCE.arena.laneJitter
+    const y = LANE_Y + Phaser.Math.Between(-jitter, jitter)
+    const enemy = WaveSystem.createRunEnemy(def, this.run.wave, id, SPAWN_X, y)
+
+    this.activeEnemies.push(enemy)
+    this.addEnemyView(enemy)
   }
 
-  // ── Phaser update loop ───────────────────────────────────
+  // ── Main loop ────────────────────────────────────────────
   update(_time: number, delta: number) {
     if (!this.run.running || this.run.finished) return
 
     const dt = (delta / 1000) * this.run.speed
-    const enemy = this.run.currentEnemy
-    if (!enemy) return
 
-    // Mage attacks
+    this.updateSpawning(dt)
+    this.updateMageCasting(dt)
+    this.updateEnemies(dt)
+    this.checkWaveComplete()
+  }
+
+  private updateSpawning(dt: number) {
+    if (this.run.enemiesToSpawn.length === 0) return
+    this.run.spawnTimer -= dt
+    if (this.run.spawnTimer <= 0) {
+      this.spawnNextEnemy()
+      this.run.spawnTimer = BALANCE.spawn.intervalSeconds
+    }
+  }
+
+  private updateMageCasting(dt: number) {
     this.run.mageAttackTimer -= dt
-    if (this.run.mageAttackTimer <= 0) {
-      this.run.mageAttackTimer = this.run.mageStats.castInterval
-      const dmg = CombatSystem.mageAttack(this.run.mageStats)
-      enemy.hp = Math.max(0, enemy.hp - dmg)
-      this.log(`🔥 Firebolt hits ${enemy.definition.name} for ${dmg} dmg (HP: ${enemy.hp}/${enemy.maxHp})`)
-      this.flashHit(true)
-      this.updateEnemyCard()
+    if (this.run.mageAttackTimer > 0) return
 
-      if (enemy.hp <= 0) {
-        this.run.killCount++
-        this.killText.setText(`Kills: ${this.run.killCount}`)
-        this.log(`💀 ${enemy.definition.name} defeated!`)
-        this.run.currentEnemy = null
-        this.time.delayedCall(250 / this.run.speed, () => {
-          if (this.run.running) this.spawnNextEnemy()
-        })
-        return
-      }
+    const target = this.getClosestEnemy()
+    if (!target) {
+      // Ready to cast but no target yet — hold at 0 until one appears.
+      this.run.mageAttackTimer = 0
+      return
     }
 
-    // Enemy attacks
-    this.run.enemyAttackTimer -= dt
-    if (this.run.enemyAttackTimer <= 0) {
-      this.run.enemyAttackTimer = enemy.attackInterval
-      const dmg = CombatSystem.enemyAttack(enemy, this.run.mageStats.damageReduction)
-      this.run.mageHp = Math.max(0, this.run.mageHp - dmg)
-      this.log(`⚔️  ${enemy.definition.name} hits you for ${dmg} dmg (HP: ${this.run.mageHp}/${this.run.mageStats.maxHp})`)
-      this.flashHit(false)
-      this.updateMageCard()
+    this.run.mageAttackTimer = this.run.mageStats.castInterval
+    const dmg = CombatSystem.mageAttack(this.run.mageStats)
+    target.hp = Math.max(0, target.hp - dmg)
+    this.castFireboltVisual(target.x, target.y)
+    this.updateEnemyView(target)
+    this.popEnemy(target)
+    this.log(`🔥 ${dmg} → ${target.definition.name} (${target.hp}/${target.maxHp})`)
 
-      if (this.run.mageHp <= 0) {
-        this.endRun(`💀 You were slain on wave ${this.run.wave}!`)
+    if (target.hp <= 0) this.killEnemy(target)
+  }
+
+  private updateEnemies(dt: number) {
+    for (const enemy of this.activeEnemies) {
+      if (!enemy.hasReachedMage) {
+        enemy.x -= enemy.speed * dt
+        if (enemy.x <= MELEE_X) {
+          enemy.x = MELEE_X
+          enemy.hasReachedMage = true
+          enemy.attackTimer = enemy.attackInterval
+        }
+        const view = this.views.get(enemy.id)
+        if (view) view.container.x = enemy.x
+        continue
+      }
+
+      // In melee — attack on its own timer
+      enemy.attackTimer -= dt
+      if (enemy.attackTimer <= 0) {
+        enemy.attackTimer = enemy.attackInterval
+        const dmg = CombatSystem.enemyAttack(enemy.damage, this.run.mageStats.damageReduction)
+        this.run.mageHp = Math.max(0, this.run.mageHp - dmg)
+        this.flashMageHit()
+        this.updateMageUI()
+        this.log(`⚔️ ${enemy.definition.name} hits you ${dmg} (${this.run.mageHp}/${this.run.mageStats.maxHp})`)
+
+        if (this.run.mageHp <= 0) {
+          this.endRun(`💀 Slain on wave ${this.run.wave}!`)
+          return
+        }
       }
     }
+  }
+
+  private checkWaveComplete() {
+    if (this.run.betweenWaves) return
+    if (this.run.enemiesToSpawn.length > 0) return
+    if (this.activeEnemies.length > 0) return
+
+    this.run.betweenWaves = true
+    this.log(`✓ Wave ${this.run.wave} cleared!`)
+    this.time.delayedCall(BALANCE.spawn.interWaveSeconds * 1000 / this.run.speed, () => {
+      if (this.run.running) this.startWave(this.run.wave + 1)
+    })
+  }
+
+  private getClosestEnemy(): RunEnemy | null {
+    let closest: RunEnemy | null = null
+    for (const e of this.activeEnemies) {
+      if (!closest || e.x < closest.x) closest = e
+    }
+    return closest
+  }
+
+  private killEnemy(enemy: RunEnemy) {
+    this.run.killCount++
+    this.killText.setText(`Kills: ${this.run.killCount}`)
+    this.log(`💀 ${enemy.definition.name} defeated!`)
+
+    const view = this.views.get(enemy.id)
+    if (view) {
+      view.container.destroy()
+      this.views.delete(enemy.id)
+    }
+    this.activeEnemies = this.activeEnemies.filter((e) => e.id !== enemy.id)
+  }
+
+  // ── Enemy views ──────────────────────────────────────────
+  private addEnemyView(enemy: RunEnemy) {
+    const isBoss = enemy.definition.isBoss
+    const size = isBoss ? 44 : 30
+    const barW = isBoss ? 64 : 44
+    const barY = -size / 2 - 10
+
+    const emoji = this.add.text(0, 0, enemy.definition.emoji, {
+      fontSize: `${size}px`,
+    }).setOrigin(0.5)
+
+    const hpBg = this.add.rectangle(0, barY, barW, 6, 0x374151).setOrigin(0.5, 0.5)
+    const hpFill = this.add.rectangle(-barW / 2, barY, barW, 6, 0xef4444).setOrigin(0, 0.5)
+
+    const container = this.add.container(enemy.x, enemy.y, [hpBg, hpFill, emoji])
+    this.views.set(enemy.id, { container, emoji, hpFill, barWidth: barW })
+  }
+
+  private updateEnemyView(enemy: RunEnemy) {
+    const view = this.views.get(enemy.id)
+    if (!view) return
+    const pct = enemy.maxHp > 0 ? Math.max(0, enemy.hp / enemy.maxHp) : 0
+    view.hpFill.width = view.barWidth * pct
+  }
+
+  private popEnemy(enemy: RunEnemy) {
+    const view = this.views.get(enemy.id)
+    if (!view) return
+    this.tweens.add({
+      targets: view.emoji,
+      scale: { from: 1.3, to: 1 },
+      duration: 120,
+      ease: 'Quad.easeOut',
+    })
+  }
+
+  private castFireboltVisual(targetX: number, targetY: number) {
+    const bolt = this.add.text(MAGE_X + 22, LANE_Y, '🔥', {
+      fontSize: '22px',
+    }).setOrigin(0.5)
+    this.tweens.add({
+      targets: bolt,
+      x: targetX,
+      y: targetY,
+      duration: 160 / this.run.speed,
+      ease: 'Linear',
+      onComplete: () => bolt.destroy(),
+    })
+  }
+
+  // ── Mage UI ──────────────────────────────────────────────
+  private updateMageUI() {
+    const s = this.run.mageStats
+    const pct = Math.max(0, this.run.mageHp / s.maxHp)
+    this.mageHpFill.width = this.mageBarWidth * pct
+    this.mageHpText.setText(`${this.run.mageHp} / ${s.maxHp}`)
+    this.mageStatsText.setText([
+      `🔥 Damage:   ${s.damage}`,
+      `⚡ Cast:      ${s.castInterval.toFixed(2)}s`,
+      `🛡️  Barrier:   ${s.damageReduction}`,
+    ])
+  }
+
+  private flashMageHit() {
+    this.tweens.add({
+      targets: this.mageSprite,
+      scale: { from: 1.25, to: 1 },
+      duration: 130,
+      ease: 'Quad.easeOut',
+    })
   }
 
   // ── End run ──────────────────────────────────────────────
@@ -248,15 +382,15 @@ export class RunScene extends Phaser.Scene {
     this.log(reason)
     this.log(`Earned ${reward} 💧 Blue Mana!`)
 
-    // Show result overlay
-    this.drawPanel(150, 180, 500, 200, '#1e1b4b')
-    this.add.text(W / 2, 210, reason, {
+    // Result overlay
+    this.drawPanel(150, 180, 500, 220, '#1e1b4b')
+    this.add.text(W / 2, 215, reason, {
       fontSize: '18px', color: '#f9fafb', fontFamily: 'monospace', wordWrap: { width: 460 },
     }).setOrigin(0.5)
-    this.add.text(W / 2, 265, `Wave reached: ${this.run.wave}   Kills: ${this.run.killCount}`, {
+    this.add.text(W / 2, 265, `Wave reached: ${this.run.wave}    Kills: ${this.run.killCount}`, {
       fontSize: '15px', color: '#9ca3af', fontFamily: 'monospace',
     }).setOrigin(0.5)
-    this.add.text(W / 2, 300, `+${reward} 💧 Blue Mana earned`, {
+    this.add.text(W / 2, 300, `+${reward} 💧 Blue Mana`, {
       fontSize: '20px', color: '#60a5fa', fontFamily: 'monospace',
     }).setOrigin(0.5)
 
@@ -264,74 +398,21 @@ export class RunScene extends Phaser.Scene {
       fontSize: '18px', color: '#a78bfa', fontFamily: 'monospace',
       backgroundColor: '#111827', padding: { x: 16, y: 10 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-
     returnBtn.on('pointerdown', () => this.scene.start('UpgradeScene'))
     returnBtn.on('pointerover', () => returnBtn.setAlpha(0.8))
     returnBtn.on('pointerout', () => returnBtn.setAlpha(1))
   }
 
-  // ── UI helpers ───────────────────────────────────────────
-  private updateMageCard() {
-    const s = this.run.mageStats
-    this.mageCard.setText([
-      `HP:     ${this.run.mageHp}/${s.maxHp}`,
-      `Dmg:    ${s.damage}`,
-      `Cast:   ${s.castInterval.toFixed(2)}s`,
-      `Barrier: ${s.damageReduction}`,
-    ])
-    this.drawHpBar(this.mageHpBar, 40, 220, 180, this.run.mageHp, s.maxHp, 0x22c55e)
-    this.mageHpText.setText(`${this.run.mageHp}/${s.maxHp}`)
-  }
-
-  private updateEnemyCard() {
-    const e = this.run.currentEnemy
-    if (!e) {
-      this.enemyNameText.setText('')
-      this.enemyCard.setText('Waiting...')
-      this.drawHpBar(this.enemyHpBar, 580, 220, 180, 0, 1, 0xef4444)
-      this.enemyHpText.setText('')
-      return
-    }
-    this.enemyNameText.setText(`${e.definition.emoji} ${e.definition.name}`)
-    this.enemyCard.setText([
-      `HP:     ${e.hp}/${e.maxHp}`,
-      `Dmg:    ${e.damage}`,
-      `Attack: ${e.attackInterval.toFixed(1)}s`,
-    ])
-    this.drawHpBar(this.enemyHpBar, 580, 220, 180, e.hp, e.maxHp, 0xef4444)
-    this.enemyHpText.setText(`${e.hp}/${e.maxHp}`)
-  }
-
-  private drawHpBar(gfx: Phaser.GameObjects.Graphics, x: number, y: number, w: number, hp: number, maxHp: number, color: number) {
-    gfx.clear()
-    const pct = maxHp > 0 ? Math.max(0, hp / maxHp) : 0
-    gfx.fillStyle(color, 1)
-    gfx.fillRoundedRect(x, y, Math.floor(w * pct), 14, 4)
-  }
-
+  // ── Helpers ──────────────────────────────────────────────
   private log(line: string) {
     this.logLines.push(line)
-    if (this.logLines.length > 8) this.logLines.shift()
+    if (this.logLines.length > 6) this.logLines.shift()
     this.combatLog.setText(this.logLines)
   }
 
   private toggleSpeed() {
     this.run.speed = this.run.speed === 1 ? 2 : 1
     this.speedBtn.setText(` ⚡ x${this.run.speed} `)
-  }
-
-  private flashHit(enemyHit: boolean) {
-    const x = enemyHit ? 570 : 30
-    this.flashGfx.clear()
-    this.flashGfx.fillStyle(enemyHit ? 0xff4444 : 0x4444ff, 0.25)
-    this.flashGfx.fillRect(x, 70, 200, 220)
-    this.flashGfx.setAlpha(1)
-    this.tweens.add({
-      targets: this.flashGfx,
-      alpha: 0,
-      duration: 200,
-      ease: 'Linear',
-    })
   }
 
   private drawPanel(x: number, y: number, w: number, h: number, color = '#111827') {

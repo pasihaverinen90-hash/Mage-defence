@@ -1,4 +1,4 @@
-import type { EnemyDefinition, EnemyInstance } from '../types/game'
+import type { EnemyDefinition, RunEnemy } from '../types/game'
 import { REGULAR_ENEMY_POOL, BOSS_ENEMY } from '../data/enemies'
 import { BALANCE } from '../data/balance'
 
@@ -7,46 +7,50 @@ export const WaveSystem = {
     return wave % BALANCE.boss.waveInterval === 0
   },
 
-  scaleEnemy(def: EnemyDefinition, wave: number): EnemyInstance {
-    const waveIndex = wave - 1
-    const hp = Math.floor(def.baseHp * Math.pow(def.hpScaling, waveIndex))
-    const damage = Math.floor(def.baseDamage * Math.pow(def.damageScaling, waveIndex))
-
-    if (def.isBoss) {
-      return {
-        definition: def,
-        maxHp: hp * BALANCE.boss.hpMultiplier,
-        hp: hp * BALANCE.boss.hpMultiplier,
-        damage: damage * BALANCE.boss.damageMultiplier,
-        attackInterval: def.baseAttackInterval,
-      }
-    }
-
-    return {
-      definition: def,
-      maxHp: hp,
-      hp: hp,
-      damage,
-      attackInterval: def.baseAttackInterval,
-    }
-  },
-
-  getEnemiesForWave(wave: number): EnemyInstance[] {
+  // Ordered list of enemy definitions to spawn over time during a wave.
+  getSpawnPlanForWave(wave: number): EnemyDefinition[] {
     if (WaveSystem.isBossWave(wave)) {
-      return [WaveSystem.scaleEnemy(BOSS_ENEMY, wave)]
+      return [BOSS_ENEMY]
     }
 
-    const count = BALANCE.wave.enemiesPerWave
-    const enemies: EnemyInstance[] = []
-    // Cycle through the pool, favouring stronger enemies in later waves
+    // Favour stronger enemies in later waves by walking up the pool.
     const poolIndex = Math.min(
       Math.floor((wave - 1) / 3),
       REGULAR_ENEMY_POOL.length - 1,
     )
     const def = REGULAR_ENEMY_POOL[poolIndex]
-    for (let i = 0; i < count; i++) {
-      enemies.push(WaveSystem.scaleEnemy(def, wave))
+    return Array.from({ length: BALANCE.wave.enemiesPerWave }, () => def)
+  },
+
+  // Build a live lane enemy with wave-scaled stats at a given position.
+  createRunEnemy(
+    def: EnemyDefinition,
+    wave: number,
+    id: string,
+    x: number,
+    y: number,
+  ): RunEnemy {
+    const waveIndex = wave - 1
+    let hp = Math.floor(def.baseHp * Math.pow(def.hpScaling, waveIndex))
+    let damage = Math.floor(def.baseDamage * Math.pow(def.damageScaling, waveIndex))
+
+    if (def.isBoss) {
+      hp *= BALANCE.boss.hpMultiplier
+      damage *= BALANCE.boss.damageMultiplier
     }
-    return enemies
+
+    return {
+      id,
+      definition: def,
+      hp,
+      maxHp: hp,
+      damage,
+      attackInterval: def.baseAttackInterval,
+      attackTimer: def.baseAttackInterval,
+      x,
+      y,
+      speed: def.movementSpeed,
+      hasReachedMage: false,
+    }
   },
 }

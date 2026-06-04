@@ -12,17 +12,25 @@ export interface EnemyDefinition {
   baseHp: number
   baseDamage: number
   baseAttackInterval: number // seconds between attacks
+  movementSpeed: number // pixels per second moving left toward the mage
   hpScaling: number // multiplier per wave
   damageScaling: number // multiplier per wave
   isBoss: boolean
 }
 
-export interface EnemyInstance {
+// A live enemy on the arena lane with its own position and timers.
+export interface RunEnemy {
+  id: string
   definition: EnemyDefinition
-  maxHp: number
   hp: number
+  maxHp: number
   damage: number
   attackInterval: number
+  attackTimer: number
+  x: number
+  y: number
+  speed: number
+  hasReachedMage: boolean
 }
 
 export interface UpgradeDefinition {
