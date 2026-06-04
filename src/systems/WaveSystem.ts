@@ -7,19 +7,28 @@ export const WaveSystem = {
     return wave % BALANCE.boss.waveInterval === 0
   },
 
-  // Ordered list of enemy definitions to spawn over time during a wave.
-  getSpawnPlanForWave(wave: number): EnemyDefinition[] {
-    if (WaveSystem.isBossWave(wave)) {
-      return [BOSS_ENEMY]
-    }
+  // Seconds between continuous spawns; the cadence speeds up as the wave rises.
+  getSpawnInterval(wave: number): number {
+    const s = BALANCE.spawn
+    return Math.max(
+      s.minIntervalSeconds,
+      s.baseIntervalSeconds - (wave - 1) * s.intervalRampPerWave,
+    )
+  },
 
-    // Favour stronger enemies in later waves by walking up the pool.
-    const poolIndex = Math.min(
+  // Pick a regular enemy for the wave. Stronger types unlock over time and we
+  // mix across all unlocked tiers so the pressure stays varied.
+  pickEnemyForWave(wave: number): EnemyDefinition {
+    const maxIndex = Math.min(
       Math.floor((wave - 1) / 3),
       REGULAR_ENEMY_POOL.length - 1,
     )
-    const def = REGULAR_ENEMY_POOL[poolIndex]
-    return Array.from({ length: BALANCE.wave.enemiesPerWave }, () => def)
+    const index = Math.floor(Math.random() * (maxIndex + 1))
+    return REGULAR_ENEMY_POOL[index]
+  },
+
+  getBossEnemy(): EnemyDefinition {
+    return BOSS_ENEMY
   },
 
   // Build a live lane enemy with wave-scaled stats at a given position.

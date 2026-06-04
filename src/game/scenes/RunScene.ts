@@ -20,14 +20,16 @@ interface RunState {
   castle: CastleState
   mageStats: MageStats
   wave: number
+  highestWaveThisRun: number
   killCount: number
-  enemiesToSpawn: EnemyDefinition[]
+  bossKills: number
+  survivalTime: number // accumulated game-seconds (speed-scaled)
   spawnTimer: number
+  waveTimer: number
   mageAttackTimer: number
   speed: number
   running: boolean
   finished: boolean
-  betweenWaves: boolean
 }
 
 // Visual representation of one lane enemy.
@@ -87,18 +89,20 @@ export class RunScene extends Phaser.Scene {
       },
       mageStats: stats,
       wave: 1,
+      highestWaveThisRun: 1,
       killCount: 0,
-      enemiesToSpawn: [],
-      spawnTimer: 0,
+      bossKills: 0,
+      survivalTime: 0,
+      spawnTimer: BALANCE.spawn.initialDelaySeconds,
+      waveTimer: BALANCE.wave.secondsPerWave,
       mageAttackTimer: stats.castInterval,
       speed: 1,
       running: true,
       finished: false,
-      betweenWaves: false,
     }
 
     this.buildUI()
-    this.startWave(1)
+    this.announceWave()
   }
 
   // ── Build static UI ──────────────────────────────────────
@@ -199,26 +203,27 @@ export class RunScene extends Phaser.Scene {
   }
 
   // ── Wave / spawn management ──────────────────────────────
-  private startWave(wave: number) {
-    this.run.wave = wave
-    this.run.betweenWaves = false
-    this.run.enemiesToSpawn = WaveSystem.getSpawnPlanForWave(wave)
-    this.run.spawnTimer = BALANCE.spawn.initialDelaySeconds
-
-    const isBoss = WaveSystem.isBossWave(wave)
-    this.waveText.setText(`Wave ${wave}${isBoss ? '  👹 BOSS' : ''}`)
-    this.log(`── Wave ${wave}${isBoss ? ' [BOSS]' : ''} ──`)
+  // Wave number is now just a scaling indicator that ticks up on a timer;
+  // enemies spawn continuously rather than in discrete, cleared waves.
+  private advanceWave() {
+    this.run.wave++
+    this.run.highestWaveThisRun = this.run.wave
+    this.announceWave()
+    if (WaveSystem.isBossWave(this.run.wave)) {
+      this.spawnEnemyOf(WaveSystem.getBossEnemy())
+    }
   }
 
-  private spawnNextEnemy() {
-    const def = this.run.enemiesToSpawn.shift()
-    if (!def) return
+  private announceWave() {
+    const isBoss = WaveSystem.isBossWave(this.run.wave)
+    this.waveText.setText(`Wave ${this.run.wave}${isBoss ? '  👹 BOSS' : ''}`)
+    this.log(`── Wave ${this.run.wave}${isBoss ? ' [BOSS]' : ''} ──`)
+  }
 
+  private spawnEnemyOf(def: EnemyDefinition) {
     const id = `e${this.nextEnemyId++}`
-    const jitter = BALANCE.arena.laneJitter
-    const y = LANE_Y + Phaser.Math.Between(-jitter, jitter)
+    const y = Phaser.Math.Between(BALANCE.arena.laneTop, BALANCE.arena.laneBottom)
     const enemy = WaveSystem.createRunEnemy(def, this.run.wave, id, SPAWN_X, y)
-
     this.activeEnemies.push(enemy)
     this.addEnemyView(enemy)
   }
@@ -228,20 +233,29 @@ export class RunScene extends Phaser.Scene {
     if (!this.run.running || this.run.finished) return
 
     const dt = (delta / 1000) * this.run.speed
+    this.run.survivalTime += dt
 
+    this.updateWaveProgress(dt)
     this.updateSpawning(dt)
     this.updateMageCasting(dt)
     this.updateEnemies(dt)
-    this.checkWaveComplete()
+  }
+
+  private updateWaveProgress(dt: number) {
+    this.run.waveTimer -= dt
+    if (this.run.waveTimer <= 0) {
+      this.run.waveTimer += BALANCE.wave.secondsPerWave
+      this.advanceWave()
+    }
   }
 
   private updateSpawning(dt: number) {
-    if (this.run.enemiesToSpawn.length === 0) return
     this.run.spawnTimer -= dt
-    if (this.run.spawnTimer <= 0) {
-      this.spawnNextEnemy()
-      this.run.spawnTimer = BALANCE.spawn.intervalSeconds
-    }
+    if (this.run.spawnTimer > 0) return
+    this.run.spawnTimer = WaveSystem.getSpawnInterval(this.run.wave)
+    // Soft cap keeps entity counts (and perf) bounded under heavy pressure.
+    if (this.activeEnemies.length >= BALANCE.spawn.maxActive) return
+    this.spawnEnemyOf(WaveSystem.pickEnemyForWave(this.run.wave))
   }
 
   private updateMageCasting(dt: number) {
@@ -298,18 +312,6 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
-  private checkWaveComplete() {
-    if (this.run.betweenWaves) return
-    if (this.run.enemiesToSpawn.length > 0) return
-    if (this.activeEnemies.length > 0) return
-
-    this.run.betweenWaves = true
-    this.log(`✓ Wave ${this.run.wave} cleared!`)
-    this.time.delayedCall(BALANCE.spawn.interWaveSeconds * 1000 / this.run.speed, () => {
-      if (this.run.running) this.startWave(this.run.wave + 1)
-    })
-  }
-
   private getClosestEnemy(): RunEnemy | null {
     let closest: RunEnemy | null = null
     for (const e of this.activeEnemies) {
@@ -320,6 +322,7 @@ export class RunScene extends Phaser.Scene {
 
   private killEnemy(enemy: RunEnemy) {
     this.run.killCount++
+    if (enemy.definition.isBoss) this.run.bossKills++
     this.killText.setText(`Kills: ${this.run.killCount}`)
     this.log(`💀 ${enemy.definition.name} defeated!`)
 
@@ -421,8 +424,8 @@ export class RunScene extends Phaser.Scene {
     this.run.running = false
     this.run.finished = true
 
-    const reward = RewardSystem.calculateBlueMana(this.run.wave, this.run.killCount, gameState.upgradeLevels)
-    gameState.recordRunEnd(this.run.wave, reward)
+    const reward = RewardSystem.calculateBlueMana(this.run.highestWaveThisRun, this.run.killCount, gameState.upgradeLevels)
+    gameState.recordRunEnd(this.run.highestWaveThisRun, reward)
 
     this.log(reason)
     this.log(`Earned ${reward} 💧 Blue Mana!`)
@@ -432,7 +435,7 @@ export class RunScene extends Phaser.Scene {
     this.add.text(W / 2, 215, reason, {
       fontSize: '18px', color: '#f9fafb', fontFamily: 'monospace', wordWrap: { width: 460 },
     }).setOrigin(0.5)
-    this.add.text(W / 2, 265, `Wave reached: ${this.run.wave}    Kills: ${this.run.killCount}`, {
+    this.add.text(W / 2, 265, `Wave ${this.run.highestWaveThisRun}   Kills ${this.run.killCount}   👹 ${this.run.bossKills}   ⏱ ${Math.floor(this.run.survivalTime)}s`, {
       fontSize: '15px', color: '#9ca3af', fontFamily: 'monospace',
     }).setOrigin(0.5)
     this.add.text(W / 2, 300, `+${reward} 💧 Blue Mana`, {
