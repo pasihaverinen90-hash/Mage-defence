@@ -38,6 +38,9 @@ export const UpgradeSystem = {
       maxHp: b.baseHp + levels.maxHp * u.castleMaxHpPerLevel,
       armor: b.baseArmor + levels.armor * u.castleArmorPerLevel,
       maxShield: b.baseShield + levels.startingShield * u.castleStartingShieldPerLevel,
+      regenPerSec: b.baseRegen + levels.regen * u.castleRegenPerLevel,
+      waveRepair: b.baseWaveRepair + levels.waveRepair * u.castleWaveRepairPerLevel,
+      spikeDamage: levels.spikes * u.castleSpikesPerLevel,
     }
   },
 

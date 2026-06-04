@@ -33,28 +33,28 @@ export class UpgradeScene extends Phaser.Scene {
     this.manaText = this.add.text(30, 327, '', { fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4 })
 
     // ── Upgrade panel (right) ──────────────────────────────
-    this.drawPanel(285, 60, 495, 440)
+    this.drawPanel(285, 60, 495, 470)
 
-    let y = 78
+    let y = 74
     UPGRADE_SECTIONS.forEach((section) => {
       this.add.text(300, y, section.label, {
         fontSize: '14px', color: '#a78bfa', fontFamily: 'monospace',
       })
-      y += 24
+      y += 20
 
       section.upgradeIds.forEach((id) => {
         const def = UPGRADES[id]
-        this.drawPanel(295, y, 475, 46, '#1a1a2e')
-        this.add.text(310, y + 5, `${def.emoji}  ${def.name}`, {
-          fontSize: '14px', color: '#c4b5fd', fontFamily: 'monospace',
+        this.drawPanel(295, y, 475, 38, '#1a1a2e')
+        this.add.text(310, y + 4, `${def.emoji}  ${def.name}`, {
+          fontSize: '13px', color: '#c4b5fd', fontFamily: 'monospace',
         })
-        this.add.text(310, y + 25, def.description, {
+        this.add.text(310, y + 21, def.description, {
           fontSize: '10px', color: '#9ca3af', fontFamily: 'monospace',
         })
 
-        const btn = this.add.text(760, y + 23, '', {
+        const btn = this.add.text(760, y + 19, '', {
           fontSize: '13px', color: '#60a5fa', fontFamily: 'monospace',
-          backgroundColor: '#1e1b4b', padding: { x: 10, y: 6 },
+          backgroundColor: '#1e1b4b', padding: { x: 10, y: 4 },
         }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true })
 
         btn.on('pointerdown', () => {
@@ -64,9 +64,9 @@ export class UpgradeScene extends Phaser.Scene {
         btn.on('pointerout', () => btn.setAlpha(1))
 
         this.upgradeButtons.set(id, btn)
-        y += 50
+        y += 42
       })
-      y += 6
+      y += 4
     })
 
     // ── Start Run button ───────────────────────────────────
@@ -92,6 +92,8 @@ export class UpgradeScene extends Phaser.Scene {
       `❤️  HP:      ${castle.maxHp}`,
       `🧱 Armor:   ${castle.armor}`,
       `🛡️  Shield:   ${castle.maxShield}`,
+      `💚 Regen:   ${castle.regenPerSec}/s`,
+      `⛏️ Spikes:  ${castle.spikeDamage > 0 ? castle.spikeDamage : '—'}`,
       '',
       '🧙 Fire Mage',
       `🔥 Damage:  ${mage.damage}`,

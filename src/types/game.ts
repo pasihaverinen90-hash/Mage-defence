@@ -9,6 +9,9 @@ export interface CastleStats {
   maxHp: number
   armor: number // flat damage reduction
   maxShield: number
+  regenPerSec: number
+  waveRepair: number
+  spikeDamage: number
 }
 
 // Categories that group upgrade definitions and route their saved levels.
@@ -21,6 +24,9 @@ export interface CastleState {
   armor: number // flat damage reduction applied before HP loss
   shield: number // Magic Shield: absorbs incoming damage before HP
   maxShield: number
+  regenPerSec: number // passive HP regen (HP only, never shield)
+  waveRepair: number // HP healed each wave milestone
+  spikeDamage: number // damage dealt to wall enemies each spike tick
 }
 
 export interface EnemyDefinition {

@@ -20,6 +20,21 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Starting Shield', description: '+15 Magic Shield per level', emoji: '🛡️',
     costBase: 12, costMultiplier: 1.6, maxLevel: 30,
   },
+  castleRegen: {
+    id: 'castleRegen', category: 'castle', field: 'regen',
+    name: 'Castle Regen', description: '+1 HP/sec per level', emoji: '💚',
+    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
+  },
+  castleWaveRepair: {
+    id: 'castleWaveRepair', category: 'castle', field: 'waveRepair',
+    name: 'Wave Repair', description: '+10 HP repaired each wave per level', emoji: '🔧',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
+  castleSpikes: {
+    id: 'castleSpikes', category: 'castle', field: 'spikes',
+    name: 'Spikes', description: '+3 dmg to wall enemies every 3s per level', emoji: '⛏️',
+    costBase: 18, costMultiplier: 1.65, maxLevel: 30,
+  },
   fireballDamage: {
     id: 'fireballDamage', category: 'fireMage', field: 'fireballDamage',
     name: 'Fireball Damage', description: '+15% Fireball damage per level', emoji: '🔥',
@@ -43,7 +58,7 @@ export interface UpgradeSection {
 }
 
 export const UPGRADE_SECTIONS: UpgradeSection[] = [
-  { label: '🏰 Castle', upgradeIds: ['castleMaxHp', 'castleArmor', 'castleStartingShield'] },
+  { label: '🏰 Castle', upgradeIds: ['castleMaxHp', 'castleArmor', 'castleStartingShield', 'castleRegen', 'castleWaveRepair', 'castleSpikes'] },
   { label: '🧙 Fire Mage', upgradeIds: ['fireballDamage', 'fireballCastSpeed'] },
   { label: '💧 Global', upgradeIds: ['blueManaGain'] },
 ]

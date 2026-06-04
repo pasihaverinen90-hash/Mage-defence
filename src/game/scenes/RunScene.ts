@@ -26,6 +26,7 @@ interface RunState {
   survivalTime: number // accumulated game-seconds (speed-scaled)
   spawnTimer: number
   waveTimer: number
+  spikeTimer: number
   mageAttackTimer: number
   speed: number
   running: boolean
@@ -86,6 +87,9 @@ export class RunScene extends Phaser.Scene {
         armor: castleStats.armor,
         shield: castleStats.maxShield,
         maxShield: castleStats.maxShield,
+        regenPerSec: castleStats.regenPerSec,
+        waveRepair: castleStats.waveRepair,
+        spikeDamage: castleStats.spikeDamage,
       },
       mageStats,
       wave: 1,
@@ -95,6 +99,7 @@ export class RunScene extends Phaser.Scene {
       survivalTime: 0,
       spawnTimer: BALANCE.spawn.initialDelaySeconds,
       waveTimer: BALANCE.wave.secondsPerWave,
+      spikeTimer: BALANCE.castle.spikeIntervalSeconds,
       mageAttackTimer: mageStats.castInterval,
       speed: 1,
       running: true,
@@ -209,9 +214,21 @@ export class RunScene extends Phaser.Scene {
     this.run.wave++
     this.run.highestWaveThisRun = this.run.wave
     this.announceWave()
+    this.applyWaveRepair()
     if (WaveSystem.isBossWave(this.run.wave)) {
       this.spawnEnemyOf(WaveSystem.getBossEnemy())
     }
+  }
+
+  // Heal a chunk of Castle HP each wave milestone (never overhealing).
+  private applyWaveRepair() {
+    const c = this.run.castle
+    if (c.waveRepair <= 0 || c.hp <= 0 || c.hp >= c.maxHp) return
+    const before = c.hp
+    c.hp = Math.min(c.maxHp, c.hp + c.waveRepair)
+    const healed = Math.round(c.hp - before)
+    if (healed > 0) this.log(`🔧 Wave repair +${healed} HP`)
+    this.updateCastleUI()
   }
 
   private announceWave() {
@@ -237,8 +254,41 @@ export class RunScene extends Phaser.Scene {
 
     this.updateWaveProgress(dt)
     this.updateSpawning(dt)
+    this.updateRegen(dt)
+    this.updateSpikes(dt)
     this.updateMageCasting(dt)
     this.updateEnemies(dt)
+  }
+
+  // Passive HP regen — restores Castle HP only, never the Magic Shield.
+  private updateRegen(dt: number) {
+    const c = this.run.castle
+    if (c.regenPerSec <= 0 || c.hp <= 0 || c.hp >= c.maxHp) return
+    c.hp = Math.min(c.maxHp, c.hp + c.regenPerSec * dt)
+    this.updateCastleUI()
+  }
+
+  // Single castle-level spike timer that damages every melee enemy at the wall.
+  private updateSpikes(dt: number) {
+    const c = this.run.castle
+    if (c.spikeDamage <= 0) return
+    this.run.spikeTimer -= dt
+    if (this.run.spikeTimer > 0) return
+    this.run.spikeTimer = BALANCE.castle.spikeIntervalSeconds
+
+    const atWall = this.activeEnemies.filter((e) => e.hasReachedMage)
+    if (atWall.length === 0) return
+
+    for (const enemy of atWall) {
+      enemy.hp = Math.max(0, enemy.hp - c.spikeDamage)
+      if (enemy.hp <= 0) {
+        this.killEnemy(enemy)
+      } else {
+        this.updateEnemyView(enemy)
+        this.popEnemy(enemy)
+      }
+    }
+    this.log(`⛏️ Spikes hit ${atWall.length} for ${c.spikeDamage}`)
   }
 
   private updateWaveProgress(dt: number) {
@@ -302,7 +352,7 @@ export class RunScene extends Phaser.Scene {
         const dmg = CombatSystem.applyDamageToCastle(c, enemy.damage)
         this.flashCastleHit()
         this.updateCastleUI()
-        this.log(`⚔️ ${enemy.definition.name} hits the castle ${dmg} (🛡️${c.shield} ❤️${c.hp})`)
+        this.log(`⚔️ ${enemy.definition.name} hits the castle ${dmg} (🛡️${c.shield} ❤️${Math.round(c.hp)})`)
 
         if (c.hp <= 0) {
           this.endRun(`🏰 The castle has fallen on wave ${this.run.wave}!`)
@@ -399,9 +449,11 @@ export class RunScene extends Phaser.Scene {
     this.castleHpFill.width = this.castleBarWidth * hpPct
     this.castleShieldFill.width = this.castleBarWidth * shieldPct
     this.castleShieldText.setText(`🛡️  Shield:  ${c.shield} / ${c.maxShield}`)
-    this.castleHpText.setText(`❤️  HP:      ${c.hp} / ${c.maxHp}`)
+    this.castleHpText.setText(`❤️  HP:      ${Math.round(c.hp)} / ${c.maxHp}`)
     this.castleStatsText.setText([
       `🧱 Armor:    ${c.armor}`,
+      `💚 Regen:    ${c.regenPerSec}/s`,
+      `⛏️ Spikes:   ${c.spikeDamage > 0 ? `${c.spikeDamage}/${BALANCE.castle.spikeIntervalSeconds}s` : '—'}`,
       ``,
       `🧙 Fire Mage`,
       `🔥 Damage:   ${s.damage}`,

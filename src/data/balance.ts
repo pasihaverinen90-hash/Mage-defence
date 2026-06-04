@@ -3,6 +3,9 @@ export const BALANCE = {
     baseHp: 100,
     baseArmor: 0,
     baseShield: 40,
+    baseRegen: 0,                // HP/sec before upgrades
+    baseWaveRepair: 0,           // HP healed per wave before upgrades
+    spikeIntervalSeconds: 3,     // spikes tick this often
   },
   fireMage: {
     baseDamage: 10,
@@ -13,6 +16,9 @@ export const BALANCE = {
     castleMaxHpPerLevel: 20,           // +20 max HP per level
     castleArmorPerLevel: 3,            // +3 flat damage reduction per level
     castleStartingShieldPerLevel: 15,  // +15 Magic Shield per level
+    castleRegenPerLevel: 1,            // +1 HP/sec per level
+    castleWaveRepairPerLevel: 10,      // +10 HP repaired each wave per level
+    castleSpikesPerLevel: 3,           // +3 spike damage per tick per level
     fireballDamagePerLevel: 0.15,      // +15% Fireball damage per level
     fireballCastSpeedPerLevel: 0.08,   // -8% cast interval per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
