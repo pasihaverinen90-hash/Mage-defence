@@ -6,13 +6,14 @@ import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
 import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
-import type { CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState } from '../../types/game'
+import type { CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState, Projectile } from '../../types/game'
 
 const W = 800
 
 const LANE_Y = BALANCE.arena.laneY
 const SPAWN_X = BALANCE.arena.spawnX
 const MELEE_X = BALANCE.arena.meleeX
+const CASTLE_HIT_X = 130 // where enemy projectiles strike the wall
 const FLOOR_TOP = 95
 const FLOOR_BOTTOM = 325
 
@@ -45,6 +46,9 @@ export class RunScene extends Phaser.Scene {
   private activeEnemies: RunEnemy[] = []
   private views: Map<string, EnemyView> = new Map()
   private nextEnemyId = 0
+  private projectiles: Projectile[] = []
+  private projectileViews: Map<string, Phaser.GameObjects.Text> = new Map()
+  private nextProjectileId = 0
 
   // UI refs
   private waveText!: Phaser.GameObjects.Text
@@ -76,6 +80,9 @@ export class RunScene extends Phaser.Scene {
     this.activeEnemies = []
     this.views.clear()
     this.nextEnemyId = 0
+    this.projectiles = []
+    this.projectileViews.clear()
+    this.nextProjectileId = 0
 
     const upgrades = gameState.upgrades
     const castleStats = UpgradeSystem.resolveCastle(upgrades.castle)
@@ -297,6 +304,7 @@ export class RunScene extends Phaser.Scene {
     this.updateSpikes(dt)
     this.updateDefenders(dt)
     this.updateEnemies(dt)
+    this.updateProjectiles(dt)
   }
 
   // Passive HP regen — restores Castle HP only, never the Magic Shield.
@@ -315,7 +323,11 @@ export class RunScene extends Phaser.Scene {
     if (this.run.spikeTimer > 0) return
     this.run.spikeTimer = BALANCE.castle.spikeIntervalSeconds
 
-    const atWall = this.activeEnemies.filter((e) => e.hasReachedMage)
+    // Spikes only reach melee attackers pressed against the wall — ranged
+    // enemies stand too far back to be hit.
+    const atWall = this.activeEnemies.filter(
+      (e) => e.attacking && e.definition.attackType === 'melee',
+    )
     if (atWall.length === 0) return
 
     for (const enemy of atWall) {
@@ -381,11 +393,11 @@ export class RunScene extends Phaser.Scene {
 
   private updateEnemies(dt: number) {
     for (const enemy of this.activeEnemies) {
-      if (!enemy.hasReachedMage) {
+      if (!enemy.attacking) {
         enemy.x -= enemy.speed * dt
-        if (enemy.x <= MELEE_X) {
-          enemy.x = MELEE_X
-          enemy.hasReachedMage = true
+        if (enemy.x <= enemy.stopX) {
+          enemy.x = enemy.stopX
+          enemy.attacking = true
           enemy.attackTimer = enemy.attackInterval
         }
         const view = this.views.get(enemy.id)
@@ -393,22 +405,95 @@ export class RunScene extends Phaser.Scene {
         continue
       }
 
-      // At the wall — attack the castle on its own timer
+      // Reached its stop position — attack the castle on its own timer.
       enemy.attackTimer -= dt
       if (enemy.attackTimer <= 0) {
         enemy.attackTimer = enemy.attackInterval
-        const c = this.run.castle
-        const dmg = CombatSystem.applyDamageToCastle(c, enemy.damage)
-        this.flashCastleHit()
-        this.updateCastleUI()
-        this.log(`⚔️ ${enemy.definition.name} hits the castle ${dmg} (🛡️${c.shield} ❤️${Math.round(c.hp)})`)
-
-        if (c.hp <= 0) {
-          this.endRun(`🏰 The castle has fallen on wave ${this.run.wave}!`)
-          return
+        if (enemy.definition.attackType === 'ranged') {
+          this.fireEnemyProjectile(enemy)
+        } else if (this.hitCastle(enemy.damage, enemy.definition.name)) {
+          return // castle destroyed
         }
       }
     }
+  }
+
+  // Centralised castle-hit handling shared by melee strikes and projectile
+  // impacts: route damage, refresh UI/log, and report whether the run ended.
+  private hitCastle(rawDamage: number, sourceName: string): boolean {
+    const c = this.run.castle
+    const dmg = CombatSystem.applyDamageToCastle(c, rawDamage)
+    this.flashCastleHit()
+    this.updateCastleUI()
+    this.log(`⚔️ ${sourceName} hits the castle ${dmg} (🛡️${c.shield} ❤️${Math.round(c.hp)})`)
+    if (c.hp <= 0) {
+      this.endRun(`🏰 The castle has fallen on wave ${this.run.wave}!`)
+      return true
+    }
+    return false
+  }
+
+  // ── Projectiles ──────────────────────────────────────────
+  private fireEnemyProjectile(enemy: RunEnemy) {
+    const def = enemy.definition
+    const proj: Projectile = {
+      id: `p${this.nextProjectileId++}`,
+      x: enemy.x,
+      y: enemy.y,
+      targetX: CASTLE_HIT_X,
+      targetY: enemy.y,
+      speed: def.projectileSpeed ?? 260,
+      damage: enemy.damage,
+      source: 'enemy',
+      targetKind: 'castle',
+      emoji: def.projectileEmoji ?? '🔵',
+    }
+    this.projectiles.push(proj)
+    const view = this.add.text(proj.x, proj.y, proj.emoji, { fontSize: '20px' }).setOrigin(0.5)
+    this.projectileViews.set(proj.id, view)
+  }
+
+  private updateProjectiles(dt: number) {
+    if (this.projectiles.length === 0) return
+
+    const survivors: Projectile[] = []
+    for (const p of this.projectiles) {
+      const dx = p.targetX - p.x
+      const dy = p.targetY - p.y
+      const dist = Math.hypot(dx, dy)
+      const step = p.speed * dt
+
+      if (dist <= step || dist === 0) {
+        // Impact: enemy projectiles hit the shared castle pool.
+        this.destroyProjectileView(p.id)
+        if (this.hitCastle(p.damage, `${p.emoji} bolt`)) {
+          this.clearProjectiles() // run ended — drop the rest cleanly
+          return
+        }
+        continue
+      }
+
+      p.x += (dx / dist) * step
+      p.y += (dy / dist) * step
+      const view = this.projectileViews.get(p.id)
+      if (view) view.setPosition(p.x, p.y)
+      survivors.push(p)
+    }
+    this.projectiles = survivors
+  }
+
+  private destroyProjectileView(id: string) {
+    const view = this.projectileViews.get(id)
+    if (view) {
+      view.destroy()
+      this.projectileViews.delete(id)
+    }
+  }
+
+  private clearProjectiles() {
+    for (const view of this.projectileViews.values()) view.destroy()
+    this.projectileViews.clear()
+    this.projectiles = []
   }
 
   private getClosestEnemy(): RunEnemy | null {
@@ -532,6 +617,7 @@ export class RunScene extends Phaser.Scene {
     if (this.run.finished) return
     this.run.running = false
     this.run.finished = true
+    this.clearProjectiles()
 
     const reward = RewardSystem.calculateBlueMana(
       this.run.highestWaveThisRun,

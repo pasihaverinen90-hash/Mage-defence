@@ -72,13 +72,17 @@ export interface EnemyDefinition {
   baseHp: number
   baseDamage: number
   baseAttackInterval: number // seconds between attacks
-  movementSpeed: number // pixels per second moving left toward the mage
+  movementSpeed: number // pixels per second moving left toward the castle
   hpScaling: number // multiplier per wave
   damageScaling: number // multiplier per wave
   isBoss: boolean
+  attackType: 'melee' | 'ranged'
+  stopDistanceFromWall: number // 0 = stops at the wall (melee); >0 = ranged standoff
+  projectileSpeed?: number // px/sec for ranged shots
+  projectileEmoji?: string // visual for ranged shots
 }
 
-// A live enemy on the arena lane with its own position and timers.
+// A live enemy advancing on the battlefield with its own position and timers.
 export interface RunEnemy {
   id: string
   definition: EnemyDefinition
@@ -90,7 +94,23 @@ export interface RunEnemy {
   x: number
   y: number
   speed: number
-  hasReachedMage: boolean
+  stopX: number // x position where this enemy stops to attack
+  attacking: boolean // reached its stop position and is attacking the castle
+}
+
+// A simple in-flight projectile (currently enemy shots at the castle).
+// Shaped so defender attacks / manual skills can reuse it later.
+export interface Projectile {
+  id: string
+  x: number
+  y: number
+  targetX: number
+  targetY: number
+  speed: number // px/sec
+  damage: number
+  source: 'enemy' | 'defender'
+  targetKind: 'castle' | 'enemy'
+  emoji: string
 }
 
 export interface UpgradeDefinition {

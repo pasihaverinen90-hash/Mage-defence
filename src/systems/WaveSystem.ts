@@ -59,7 +59,8 @@ export const WaveSystem = {
       x,
       y,
       speed: def.movementSpeed,
-      hasReachedMage: false,
+      stopX: BALANCE.arena.meleeX + def.stopDistanceFromWall,
+      attacking: false,
     }
   },
 }
