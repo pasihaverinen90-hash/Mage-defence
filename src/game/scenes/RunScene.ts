@@ -5,7 +5,7 @@ import { WaveSystem } from '../../systems/WaveSystem'
 import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
-import type { MageStats, EnemyDefinition, RunEnemy } from '../../types/game'
+import type { MageStats, CastleState, EnemyDefinition, RunEnemy } from '../../types/game'
 
 const W = 800
 
@@ -17,7 +17,7 @@ const FLOOR_TOP = 95
 const FLOOR_BOTTOM = 325
 
 interface RunState {
-  mageHp: number
+  castle: CastleState
   mageStats: MageStats
   wave: number
   killCount: number
@@ -49,14 +49,15 @@ export class RunScene extends Phaser.Scene {
   private killText!: Phaser.GameObjects.Text
   private bestText!: Phaser.GameObjects.Text
   private mageSprite!: Phaser.GameObjects.Text
-  private mageHpFill!: Phaser.GameObjects.Rectangle
-  private mageHpText!: Phaser.GameObjects.Text
-  private mageStatsText!: Phaser.GameObjects.Text
+  private castleWall!: Phaser.GameObjects.Rectangle
+  private castleHpFill!: Phaser.GameObjects.Rectangle
+  private castleHpText!: Phaser.GameObjects.Text
+  private castleStatsText!: Phaser.GameObjects.Text
   private combatLog!: Phaser.GameObjects.Text
   private speedBtn!: Phaser.GameObjects.Text
   private logLines: string[] = []
 
-  private readonly mageBarWidth = 220
+  private readonly castleBarWidth = 220
 
   constructor() {
     super({ key: 'RunScene' })
@@ -72,7 +73,9 @@ export class RunScene extends Phaser.Scene {
     const stats = UpgradeSystem.computeMageStats(gameState.upgradeLevels)
 
     this.run = {
-      mageHp: stats.maxHp,
+      // Derive castle stats from existing upgrades (no save migration yet):
+      // maxHp upgrade → castle Max HP, magicBarrier upgrade → castle armor.
+      castle: { hp: stats.maxHp, maxHp: stats.maxHp, armor: stats.damageReduction },
       mageStats: stats,
       wave: 1,
       killCount: 0,
@@ -125,29 +128,45 @@ export class RunScene extends Phaser.Scene {
     endBtn.on('pointerover', () => endBtn.setAlpha(0.8))
     endBtn.on('pointerout', () => endBtn.setAlpha(1))
 
-    // Arena floor (the lane)
+    // Arena floor (the battlefield)
     this.drawPanel(20, FLOOR_TOP, 760, FLOOR_BOTTOM - FLOOR_TOP, '#0c1320')
-    // Mage "ground line" marker
+
+    // ── Castle wall on the left ──────────────────────────
+    const wallX = 20
+    const wallW = 100
+    const wallH = FLOOR_BOTTOM - FLOOR_TOP
+    this.castleWall = this.add.rectangle(wallX, FLOOR_TOP, wallW, wallH, 0x2a2a40)
+      .setOrigin(0, 0).setStrokeStyle(2, 0x4b5563)
+    // Battlements (merlons) along the top of the wall
+    for (let i = 0; i < 5; i++) {
+      this.add.rectangle(wallX + 4 + i * 20, FLOOR_TOP - 8, 12, 12, 0x2a2a40)
+        .setOrigin(0, 0).setStrokeStyle(1, 0x4b5563)
+    }
+    // Central gate behind the mage
+    this.add.rectangle(wallX + wallW - 34, LANE_Y, 34, 64, 0x14141f)
+      .setOrigin(0, 0.5).setStrokeStyle(1, 0x4b5563)
+
+    // Front-line marker where enemies mass against the wall
     const marker = this.add.graphics()
     marker.lineStyle(1, 0x1f2937, 1)
     marker.lineBetween(MELEE_X + 20, FLOOR_TOP + 8, MELEE_X + 20, FLOOR_BOTTOM - 8)
 
-    // Mage on the lane
+    // Fire Mage defending the central gate
     this.mageSprite = this.add.text(MAGE_X, LANE_Y, '🧙', {
       fontSize: '46px',
     }).setOrigin(0.5)
 
-    // ── Mage status panel (bottom-left) ──────────────────
+    // ── Castle status panel (bottom-left) ────────────────
     this.drawPanel(20, 335, 360, 250, '#111827')
-    this.add.text(35, 348, '🧙 MAGE', {
-      fontSize: '15px', color: '#a78bfa', fontFamily: 'monospace',
+    this.add.text(35, 348, '🏰 CASTLE', {
+      fontSize: '15px', color: '#f87171', fontFamily: 'monospace',
     })
-    this.add.rectangle(35, 378, this.mageBarWidth, 16, 0x374151).setOrigin(0, 0)
-    this.mageHpFill = this.add.rectangle(35, 378, this.mageBarWidth, 16, 0x22c55e).setOrigin(0, 0)
-    this.mageHpText = this.add.text(35 + this.mageBarWidth / 2, 386, '', {
+    this.add.rectangle(35, 378, this.castleBarWidth, 16, 0x374151).setOrigin(0, 0)
+    this.castleHpFill = this.add.rectangle(35, 378, this.castleBarWidth, 16, 0xef4444).setOrigin(0, 0)
+    this.castleHpText = this.add.text(35 + this.castleBarWidth / 2, 386, '', {
       fontSize: '11px', color: '#f9fafb', fontFamily: 'monospace',
     }).setOrigin(0.5)
-    this.mageStatsText = this.add.text(35, 410, '', {
+    this.castleStatsText = this.add.text(35, 410, '', {
       fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 5,
     })
 
@@ -160,7 +179,7 @@ export class RunScene extends Phaser.Scene {
       fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace', lineSpacing: 4,
     })
 
-    this.updateMageUI()
+    this.updateCastleUI()
     this.killText.setText('Kills: 0')
     this.bestText.setText(`Best: ${gameState.highestWaveEver}`)
   }
@@ -247,18 +266,18 @@ export class RunScene extends Phaser.Scene {
         continue
       }
 
-      // In melee — attack on its own timer
+      // At the wall — attack the castle on its own timer
       enemy.attackTimer -= dt
       if (enemy.attackTimer <= 0) {
         enemy.attackTimer = enemy.attackInterval
-        const dmg = CombatSystem.enemyAttack(enemy.damage, this.run.mageStats.damageReduction)
-        this.run.mageHp = Math.max(0, this.run.mageHp - dmg)
-        this.flashMageHit()
-        this.updateMageUI()
-        this.log(`⚔️ ${enemy.definition.name} hits you ${dmg} (${this.run.mageHp}/${this.run.mageStats.maxHp})`)
+        const c = this.run.castle
+        const dmg = CombatSystem.applyDamageToCastle(c, enemy.damage)
+        this.flashCastleHit()
+        this.updateCastleUI()
+        this.log(`⚔️ ${enemy.definition.name} hits the castle ${dmg} (${c.hp}/${c.maxHp})`)
 
-        if (this.run.mageHp <= 0) {
-          this.endRun(`💀 Slain on wave ${this.run.wave}!`)
+        if (c.hp <= 0) {
+          this.endRun(`🏰 The castle has fallen on wave ${this.run.wave}!`)
           return
         }
       }
@@ -335,6 +354,12 @@ export class RunScene extends Phaser.Scene {
   }
 
   private castFireboltVisual(targetX: number, targetY: number) {
+    this.tweens.add({
+      targets: this.mageSprite,
+      scale: { from: 1.15, to: 1 },
+      duration: 120,
+      ease: 'Quad.easeOut',
+    })
     const bolt = this.add.text(MAGE_X + 22, LANE_Y, '🔥', {
       fontSize: '22px',
     }).setOrigin(0.5)
@@ -348,23 +373,26 @@ export class RunScene extends Phaser.Scene {
     })
   }
 
-  // ── Mage UI ──────────────────────────────────────────────
-  private updateMageUI() {
+  // ── Castle UI ────────────────────────────────────────────
+  private updateCastleUI() {
+    const c = this.run.castle
     const s = this.run.mageStats
-    const pct = Math.max(0, this.run.mageHp / s.maxHp)
-    this.mageHpFill.width = this.mageBarWidth * pct
-    this.mageHpText.setText(`${this.run.mageHp} / ${s.maxHp}`)
-    this.mageStatsText.setText([
+    const pct = c.maxHp > 0 ? Math.max(0, c.hp / c.maxHp) : 0
+    this.castleHpFill.width = this.castleBarWidth * pct
+    this.castleHpText.setText(`${c.hp} / ${c.maxHp}`)
+    this.castleStatsText.setText([
+      `🛡️  Armor:    ${c.armor}`,
+      ``,
+      `🧙 Fire Mage`,
       `🔥 Damage:   ${s.damage}`,
       `⚡ Cast:      ${s.castInterval.toFixed(2)}s`,
-      `🛡️  Barrier:   ${s.damageReduction}`,
     ])
   }
 
-  private flashMageHit() {
+  private flashCastleHit() {
     this.tweens.add({
-      targets: this.mageSprite,
-      scale: { from: 1.25, to: 1 },
+      targets: this.castleWall,
+      alpha: { from: 0.45, to: 1 },
       duration: 130,
       ease: 'Quad.easeOut',
     })
@@ -376,7 +404,7 @@ export class RunScene extends Phaser.Scene {
     this.run.running = false
     this.run.finished = true
 
-    const reward = RewardSystem.calculateBlueMana(this.run.wave, gameState.upgradeLevels)
+    const reward = RewardSystem.calculateBlueMana(this.run.wave, this.run.killCount, gameState.upgradeLevels)
     gameState.recordRunEnd(this.run.wave, reward)
 
     this.log(reason)
@@ -411,7 +439,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private toggleSpeed() {
-    this.run.speed = this.run.speed === 1 ? 2 : 1
+    this.run.speed = this.run.speed === 1 ? 2 : this.run.speed === 2 ? 5 : 1
     this.speedBtn.setText(` ⚡ x${this.run.speed} `)
   }
 

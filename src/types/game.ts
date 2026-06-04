@@ -5,6 +5,13 @@ export interface MageStats {
   damageReduction: number // flat damage reduction
 }
 
+// Shared castle pool that is the defended target during a run.
+export interface CastleState {
+  hp: number
+  maxHp: number
+  armor: number // flat damage reduction applied before HP loss
+}
+
 export interface EnemyDefinition {
   id: string
   name: string

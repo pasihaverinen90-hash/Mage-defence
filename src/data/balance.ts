@@ -15,6 +15,7 @@ export const BALANCE = {
   },
   reward: {
     basePerWave: 5,
+    perKill: 1,
   },
   boss: {
     waveInterval: 10, // every 10th wave is a boss wave
