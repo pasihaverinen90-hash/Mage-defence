@@ -10,6 +10,8 @@ export interface CastleState {
   hp: number
   maxHp: number
   armor: number // flat damage reduction applied before HP loss
+  shield: number // Magic Shield: absorbs incoming damage before HP
+  maxShield: number
 }
 
 export interface EnemyDefinition {

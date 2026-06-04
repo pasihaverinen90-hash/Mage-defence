@@ -5,6 +5,10 @@ export const BALANCE = {
     baseCastInterval: 1.5, // seconds
     baseDamageReduction: 0,
   },
+  castle: {
+    // Temporary flat starting Magic Shield until the castle upgrade tree exists.
+    baseShield: 40,
+  },
   upgrades: {
     // per level multipliers / additions
     spellPowerPerLevel: 0.15,    // +15% damage per level

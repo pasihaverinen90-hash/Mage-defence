@@ -51,6 +51,8 @@ export class RunScene extends Phaser.Scene {
   private mageSprite!: Phaser.GameObjects.Text
   private castleWall!: Phaser.GameObjects.Rectangle
   private castleHpFill!: Phaser.GameObjects.Rectangle
+  private castleShieldFill!: Phaser.GameObjects.Rectangle
+  private castleShieldText!: Phaser.GameObjects.Text
   private castleHpText!: Phaser.GameObjects.Text
   private castleStatsText!: Phaser.GameObjects.Text
   private combatLog!: Phaser.GameObjects.Text
@@ -75,7 +77,14 @@ export class RunScene extends Phaser.Scene {
     this.run = {
       // Derive castle stats from existing upgrades (no save migration yet):
       // maxHp upgrade → castle Max HP, magicBarrier upgrade → castle armor.
-      castle: { hp: stats.maxHp, maxHp: stats.maxHp, armor: stats.damageReduction },
+      // Magic Shield starts full from a temporary flat balance value.
+      castle: {
+        hp: stats.maxHp,
+        maxHp: stats.maxHp,
+        armor: stats.damageReduction,
+        shield: BALANCE.castle.baseShield,
+        maxShield: BALANCE.castle.baseShield,
+      },
       mageStats: stats,
       wave: 1,
       killCount: 0,
@@ -161,12 +170,17 @@ export class RunScene extends Phaser.Scene {
     this.add.text(35, 348, '🏰 CASTLE', {
       fontSize: '15px', color: '#f87171', fontFamily: 'monospace',
     })
+    // One bar: red Castle HP with the blue Magic Shield drawn on top of it.
     this.add.rectangle(35, 378, this.castleBarWidth, 16, 0x374151).setOrigin(0, 0)
     this.castleHpFill = this.add.rectangle(35, 378, this.castleBarWidth, 16, 0xef4444).setOrigin(0, 0)
-    this.castleHpText = this.add.text(35 + this.castleBarWidth / 2, 386, '', {
-      fontSize: '11px', color: '#f9fafb', fontFamily: 'monospace',
-    }).setOrigin(0.5)
-    this.castleStatsText = this.add.text(35, 410, '', {
+    this.castleShieldFill = this.add.rectangle(35, 378, this.castleBarWidth, 16, 0x3b82f6).setOrigin(0, 0)
+    this.castleShieldText = this.add.text(35, 400, '', {
+      fontSize: '12px', color: '#60a5fa', fontFamily: 'monospace',
+    })
+    this.castleHpText = this.add.text(35, 418, '', {
+      fontSize: '12px', color: '#f87171', fontFamily: 'monospace',
+    })
+    this.castleStatsText = this.add.text(35, 446, '', {
       fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 5,
     })
 
@@ -274,7 +288,7 @@ export class RunScene extends Phaser.Scene {
         const dmg = CombatSystem.applyDamageToCastle(c, enemy.damage)
         this.flashCastleHit()
         this.updateCastleUI()
-        this.log(`⚔️ ${enemy.definition.name} hits the castle ${dmg} (${c.hp}/${c.maxHp})`)
+        this.log(`⚔️ ${enemy.definition.name} hits the castle ${dmg} (🛡️${c.shield} ❤️${c.hp})`)
 
         if (c.hp <= 0) {
           this.endRun(`🏰 The castle has fallen on wave ${this.run.wave}!`)
@@ -377,11 +391,14 @@ export class RunScene extends Phaser.Scene {
   private updateCastleUI() {
     const c = this.run.castle
     const s = this.run.mageStats
-    const pct = c.maxHp > 0 ? Math.max(0, c.hp / c.maxHp) : 0
-    this.castleHpFill.width = this.castleBarWidth * pct
-    this.castleHpText.setText(`${c.hp} / ${c.maxHp}`)
+    const hpPct = c.maxHp > 0 ? Math.max(0, c.hp / c.maxHp) : 0
+    const shieldPct = c.maxShield > 0 ? Math.max(0, c.shield / c.maxShield) : 0
+    this.castleHpFill.width = this.castleBarWidth * hpPct
+    this.castleShieldFill.width = this.castleBarWidth * shieldPct
+    this.castleShieldText.setText(`🛡️  Shield:  ${c.shield} / ${c.maxShield}`)
+    this.castleHpText.setText(`❤️  HP:      ${c.hp} / ${c.maxHp}`)
     this.castleStatsText.setText([
-      `🛡️  Armor:    ${c.armor}`,
+      `🧱 Armor:    ${c.armor}`,
       ``,
       `🧙 Fire Mage`,
       `🔥 Damage:   ${s.damage}`,
