@@ -5,11 +5,11 @@ import { WaveSystem } from '../../systems/WaveSystem'
 import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
-import type { FireMageStats, CastleState, EnemyDefinition, RunEnemy } from '../../types/game'
+import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
+import type { CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState } from '../../types/game'
 
 const W = 800
 
-const MAGE_X = BALANCE.arena.mageX
 const LANE_Y = BALANCE.arena.laneY
 const SPAWN_X = BALANCE.arena.spawnX
 const MELEE_X = BALANCE.arena.meleeX
@@ -18,7 +18,7 @@ const FLOOR_BOTTOM = 325
 
 interface RunState {
   castle: CastleState
-  mageStats: FireMageStats
+  defenders: DefenderRuntimeState[]
   wave: number
   highestWaveThisRun: number
   killCount: number
@@ -27,7 +27,6 @@ interface RunState {
   spawnTimer: number
   waveTimer: number
   spikeTimer: number
-  mageAttackTimer: number
   speed: number
   running: boolean
   finished: boolean
@@ -58,6 +57,9 @@ export class RunScene extends Phaser.Scene {
   private castleShieldText!: Phaser.GameObjects.Text
   private castleHpText!: Phaser.GameObjects.Text
   private castleStatsText!: Phaser.GameObjects.Text
+  private mageMpFill!: Phaser.GameObjects.Rectangle
+  private mageMpText!: Phaser.GameObjects.Text
+  private mageStatsText!: Phaser.GameObjects.Text
   private combatLog!: Phaser.GameObjects.Text
   private speedBtn!: Phaser.GameObjects.Text
   private logLines: string[] = []
@@ -79,6 +81,22 @@ export class RunScene extends Phaser.Scene {
     const castleStats = UpgradeSystem.resolveCastle(upgrades.castle)
     const mageStats = UpgradeSystem.resolveFireMage(upgrades.defenders.fireMage)
 
+    // The Fire Mage hero occupies the centre (gate) slot. Tower slots stay
+    // empty for now — recruits arrive in a later slice.
+    const heroSlot = DEFENDER_SLOTS.hero
+    const hero: DefenderRuntimeState = {
+      slotId: heroSlot.id,
+      definition: FIRE_MAGE,
+      x: heroSlot.x,
+      y: heroSlot.y,
+      basicDamage: mageStats.damage,
+      basicInterval: mageStats.castInterval,
+      attackTimer: mageStats.castInterval,
+      mp: 0, // defined starting value — regenerates toward maxMp during the run
+      maxMp: mageStats.maxMp,
+      mpRegen: mageStats.mpRegen,
+    }
+
     this.run = {
       // Castle HP/armor/shield all reset to full from resolved upgrade stats.
       castle: {
@@ -91,7 +109,7 @@ export class RunScene extends Phaser.Scene {
         waveRepair: castleStats.waveRepair,
         spikeDamage: castleStats.spikeDamage,
       },
-      mageStats,
+      defenders: [hero],
       wave: 1,
       highestWaveThisRun: 1,
       killCount: 0,
@@ -100,7 +118,6 @@ export class RunScene extends Phaser.Scene {
       spawnTimer: BALANCE.spawn.initialDelaySeconds,
       waveTimer: BALANCE.wave.secondsPerWave,
       spikeTimer: BALANCE.castle.spikeIntervalSeconds,
-      mageAttackTimer: mageStats.castInterval,
       speed: 1,
       running: true,
       finished: false,
@@ -169,8 +186,16 @@ export class RunScene extends Phaser.Scene {
     marker.lineStyle(1, 0x1f2937, 1)
     marker.lineBetween(MELEE_X + 20, FLOOR_TOP + 8, MELEE_X + 20, FLOOR_BOTTOM - 8)
 
-    // Fire Mage defending the central gate
-    this.mageSprite = this.add.text(MAGE_X, LANE_Y, '🧙', {
+    // Empty tower slots (future recruit positions) shown as faint placeholders
+    for (const slot of [DEFENDER_SLOTS.towerNorth, DEFENDER_SLOTS.towerSouth]) {
+      this.add.rectangle(slot.x, slot.y, 34, 34, 0x000000, 0)
+        .setStrokeStyle(1, 0x374151).setOrigin(0.5)
+      this.add.text(slot.x, slot.y, '➕', { fontSize: '16px' }).setOrigin(0.5).setAlpha(0.3)
+    }
+
+    // Fire Mage hero defending the central gate
+    const hero = this.run.defenders[0]
+    this.mageSprite = this.add.text(hero.x, hero.y, FIRE_MAGE.emoji, {
       fontSize: '46px',
     }).setOrigin(0.5)
 
@@ -189,8 +214,21 @@ export class RunScene extends Phaser.Scene {
     this.castleHpText = this.add.text(35, 418, '', {
       fontSize: '12px', color: '#f87171', fontFamily: 'monospace',
     })
-    this.castleStatsText = this.add.text(35, 446, '', {
-      fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 5,
+    this.castleStatsText = this.add.text(35, 440, '', {
+      fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4,
+    })
+
+    // ── Fire Mage subsection (MP bar lives with the hero) ─
+    this.add.text(35, 502, '🧙 Fire Mage', {
+      fontSize: '13px', color: '#a78bfa', fontFamily: 'monospace',
+    })
+    this.add.rectangle(35, 522, this.castleBarWidth, 12, 0x374151).setOrigin(0, 0)
+    this.mageMpFill = this.add.rectangle(35, 522, this.castleBarWidth, 12, 0x22d3ee).setOrigin(0, 0)
+    this.mageMpText = this.add.text(35 + this.castleBarWidth / 2, 528, '', {
+      fontSize: '10px', color: '#083344', fontFamily: 'monospace',
+    }).setOrigin(0.5)
+    this.mageStatsText = this.add.text(35, 542, '', {
+      fontSize: '12px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 3,
     })
 
     // ── Combat log panel (bottom-right) ──────────────────
@@ -203,6 +241,7 @@ export class RunScene extends Phaser.Scene {
     })
 
     this.updateCastleUI()
+    this.updateDefenderUI()
     this.killText.setText('Kills: 0')
     this.bestText.setText(`Best: ${gameState.highestWaveEver}`)
   }
@@ -256,7 +295,7 @@ export class RunScene extends Phaser.Scene {
     this.updateSpawning(dt)
     this.updateRegen(dt)
     this.updateSpikes(dt)
-    this.updateMageCasting(dt)
+    this.updateDefenders(dt)
     this.updateEnemies(dt)
   }
 
@@ -308,21 +347,31 @@ export class RunScene extends Phaser.Scene {
     this.spawnEnemyOf(WaveSystem.pickEnemyForWave(this.run.wave))
   }
 
-  private updateMageCasting(dt: number) {
-    this.run.mageAttackTimer -= dt
-    if (this.run.mageAttackTimer > 0) return
+  // Tick every defender: regenerate MP and fire its automatic basic attack.
+  // Structured as a loop so tower recruits drop in here later.
+  private updateDefenders(dt: number) {
+    for (const d of this.run.defenders) {
+      if (d.mp < d.maxMp) d.mp = Math.min(d.maxMp, d.mp + d.mpRegen * dt)
+      this.updateDefenderBasicAttack(d, dt)
+    }
+    this.updateDefenderUI()
+  }
+
+  private updateDefenderBasicAttack(d: DefenderRuntimeState, dt: number) {
+    d.attackTimer -= dt
+    if (d.attackTimer > 0) return
 
     const target = this.getClosestEnemy()
     if (!target) {
-      // Ready to cast but no target yet — hold at 0 until one appears.
-      this.run.mageAttackTimer = 0
+      // Ready to attack but no target yet — hold at 0 until one appears.
+      d.attackTimer = 0
       return
     }
 
-    this.run.mageAttackTimer = this.run.mageStats.castInterval
-    const dmg = CombatSystem.mageAttack(this.run.mageStats)
+    d.attackTimer = d.basicInterval
+    const dmg = CombatSystem.basicAttackDamage(d) // Fireball, no MP cost
     target.hp = Math.max(0, target.hp - dmg)
-    this.castFireboltVisual(target.x, target.y)
+    this.castFireboltVisual(d.x, d.y, target.x, target.y)
     this.updateEnemyView(target)
     this.popEnemy(target)
     this.log(`🔥 ${dmg} → ${target.definition.name} (${target.hp}/${target.maxHp})`)
@@ -420,14 +469,14 @@ export class RunScene extends Phaser.Scene {
     })
   }
 
-  private castFireboltVisual(targetX: number, targetY: number) {
+  private castFireboltVisual(originX: number, originY: number, targetX: number, targetY: number) {
     this.tweens.add({
       targets: this.mageSprite,
       scale: { from: 1.15, to: 1 },
       duration: 120,
       ease: 'Quad.easeOut',
     })
-    const bolt = this.add.text(MAGE_X + 22, LANE_Y, '🔥', {
+    const bolt = this.add.text(originX + 22, originY, '🔥', {
       fontSize: '22px',
     }).setOrigin(0.5)
     this.tweens.add({
@@ -443,7 +492,6 @@ export class RunScene extends Phaser.Scene {
   // ── Castle UI ────────────────────────────────────────────
   private updateCastleUI() {
     const c = this.run.castle
-    const s = this.run.mageStats
     const hpPct = c.maxHp > 0 ? Math.max(0, c.hp / c.maxHp) : 0
     const shieldPct = c.maxShield > 0 ? Math.max(0, c.shield / c.maxShield) : 0
     this.castleHpFill.width = this.castleBarWidth * hpPct
@@ -454,10 +502,19 @@ export class RunScene extends Phaser.Scene {
       `🧱 Armor:    ${c.armor}`,
       `💚 Regen:    ${c.regenPerSec}/s`,
       `⛏️ Spikes:   ${c.spikeDamage > 0 ? `${c.spikeDamage}/${BALANCE.castle.spikeIntervalSeconds}s` : '—'}`,
-      ``,
-      `🧙 Fire Mage`,
-      `🔥 Damage:   ${s.damage}`,
-      `⚡ Cast:      ${s.castInterval.toFixed(2)}s`,
+    ])
+  }
+
+  // ── Defender (Fire Mage) UI: MP bar + basic-attack stats ──
+  private updateDefenderUI() {
+    const hero = this.run.defenders[0]
+    if (!hero) return
+    const mpPct = hero.maxMp > 0 ? Math.max(0, hero.mp / hero.maxMp) : 0
+    this.mageMpFill.width = this.castleBarWidth * mpPct
+    this.mageMpText.setText(`MP ${Math.floor(hero.mp)} / ${hero.maxMp}`)
+    this.mageStatsText.setText([
+      `🔥 Damage:   ${hero.basicDamage}`,
+      `⚡ Cast:      ${hero.basicInterval.toFixed(2)}s`,
     ])
   }
 

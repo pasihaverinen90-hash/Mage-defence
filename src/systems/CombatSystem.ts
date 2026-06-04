@@ -1,8 +1,10 @@
-import type { FireMageStats, CastleState } from '../types/game'
+import type { CastleState, DefenderRuntimeState } from '../types/game'
 
 export const CombatSystem = {
-  mageAttack(stats: FireMageStats): number {
-    return stats.damage
+  // A defender's basic attack damage (no MP cost). Kept in the system so the
+  // scene never hardcodes attack maths; future defenders can add modifiers here.
+  basicAttackDamage(defender: DefenderRuntimeState): number {
+    return defender.basicDamage
   },
 
   enemyAttack(enemyDamage: number, mageReduction: number): number {

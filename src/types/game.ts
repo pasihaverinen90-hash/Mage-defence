@@ -2,6 +2,42 @@
 export interface FireMageStats {
   damage: number
   castInterval: number // seconds between attacks
+  maxMp: number
+  mpRegen: number // MP per second
+}
+
+// ── Defenders (the hero + future recruits on the castle wall) ──
+export type DefenderSlotId = 'towerNorth' | 'hero' | 'towerSouth'
+
+// A position on the castle wall that can hold a defender.
+export interface DefenderSlot {
+  id: DefenderSlotId
+  name: string
+  x: number
+  y: number
+  unlocked: boolean // hero is always unlocked; towers are future recruit slots
+}
+
+// Static identity of a defender character (the Fire Mage hero, later recruits).
+export interface DefenderDefinition {
+  id: string
+  name: string
+  emoji: string
+  basicAttackName: string
+}
+
+// Per-run live state for one defender occupying a slot.
+export interface DefenderRuntimeState {
+  slotId: DefenderSlotId
+  definition: DefenderDefinition
+  x: number
+  y: number
+  basicDamage: number
+  basicInterval: number // seconds between basic attacks
+  attackTimer: number
+  mp: number
+  maxMp: number
+  mpRegen: number // MP per second
 }
 
 // Resolved (per-run) castle stats derived from castle upgrade levels.

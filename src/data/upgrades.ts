@@ -45,6 +45,16 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Fireball Cast Speed', description: '-8% cast interval per level', emoji: '⚡',
     costBase: 12, costMultiplier: 1.65, maxLevel: 10,
   },
+  fireMageMaxMp: {
+    id: 'fireMageMaxMp', category: 'fireMage', field: 'maxMp',
+    name: 'Max MP', description: '+20 max MP per level', emoji: '🔷',
+    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
+  },
+  fireMageMpRegen: {
+    id: 'fireMageMpRegen', category: 'fireMage', field: 'mpRegen',
+    name: 'MP Regen', description: '+1 MP/sec per level', emoji: '🌀',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
   blueManaGain: {
     id: 'blueManaGain', category: 'global', field: 'blueManaGain',
     name: 'Blue Mana Gain', description: '+15% mana reward per level', emoji: '💧',
@@ -59,6 +69,6 @@ export interface UpgradeSection {
 
 export const UPGRADE_SECTIONS: UpgradeSection[] = [
   { label: '🏰 Castle', upgradeIds: ['castleMaxHp', 'castleArmor', 'castleStartingShield', 'castleRegen', 'castleWaveRepair', 'castleSpikes'] },
-  { label: '🧙 Fire Mage', upgradeIds: ['fireballDamage', 'fireballCastSpeed'] },
+  { label: '🧙 Fire Mage', upgradeIds: ['fireballDamage', 'fireballCastSpeed', 'fireMageMaxMp', 'fireMageMpRegen'] },
   { label: '💧 Global', upgradeIds: ['blueManaGain'] },
 ]

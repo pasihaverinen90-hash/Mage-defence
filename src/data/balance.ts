@@ -10,6 +10,8 @@ export const BALANCE = {
   fireMage: {
     baseDamage: 10,
     baseCastInterval: 1.5, // seconds
+    baseMaxMp: 100,
+    baseMpRegen: 5, // MP/sec
   },
   upgrades: {
     // per-level additions / multipliers, keyed to upgrade definitions
@@ -21,6 +23,8 @@ export const BALANCE = {
     castleSpikesPerLevel: 3,           // +3 spike damage per tick per level
     fireballDamagePerLevel: 0.15,      // +15% Fireball damage per level
     fireballCastSpeedPerLevel: 0.08,   // -8% cast interval per level
+    fireMageMaxMpPerLevel: 20,         // +20 max MP per level
+    fireMageMpRegenPerLevel: 1,        // +1 MP/sec per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {
@@ -42,6 +46,8 @@ export const BALANCE = {
     meleeX: 185,     // enemies stop here and attack the castle
     laneTop: 120,    // top of the battlefield band where enemies spawn
     laneBottom: 300, // bottom of the battlefield band
+    towerNorthY: 135, // future recruit slot position on the wall
+    towerSouthY: 285, // future recruit slot position on the wall
   },
   spawn: {
     baseIntervalSeconds: 1.4,   // gap between spawns early on

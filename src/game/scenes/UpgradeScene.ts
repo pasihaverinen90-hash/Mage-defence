@@ -25,7 +25,7 @@ export class UpgradeScene extends Phaser.Scene {
     // ── Stats panel (left) ─────────────────────────────────
     this.drawPanel(20, 60, 250, 220)
     this.add.text(30, 70, 'STATS', { fontSize: '13px', color: '#a78bfa', fontFamily: 'monospace' })
-    this.statsText = this.add.text(30, 92, '', { fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4 })
+    this.statsText = this.add.text(30, 88, '', { fontSize: '12px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 3 })
 
     // ── Progress panel (left, below stats) ─────────────────
     this.drawPanel(20, 295, 250, 120)
@@ -33,28 +33,28 @@ export class UpgradeScene extends Phaser.Scene {
     this.manaText = this.add.text(30, 327, '', { fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4 })
 
     // ── Upgrade panel (right) ──────────────────────────────
-    this.drawPanel(285, 60, 495, 470)
+    this.drawPanel(285, 60, 495, 430)
 
-    let y = 74
+    let y = 70
     UPGRADE_SECTIONS.forEach((section) => {
       this.add.text(300, y, section.label, {
-        fontSize: '14px', color: '#a78bfa', fontFamily: 'monospace',
+        fontSize: '13px', color: '#a78bfa', fontFamily: 'monospace',
       })
-      y += 20
+      y += 18
 
       section.upgradeIds.forEach((id) => {
         const def = UPGRADES[id]
-        this.drawPanel(295, y, 475, 38, '#1a1a2e')
-        this.add.text(310, y + 4, `${def.emoji}  ${def.name}`, {
-          fontSize: '13px', color: '#c4b5fd', fontFamily: 'monospace',
+        this.drawPanel(295, y, 475, 24, '#1a1a2e')
+        this.add.text(308, y + 2, `${def.emoji}  ${def.name}`, {
+          fontSize: '11px', color: '#c4b5fd', fontFamily: 'monospace',
         })
-        this.add.text(310, y + 21, def.description, {
-          fontSize: '10px', color: '#9ca3af', fontFamily: 'monospace',
+        this.add.text(308, y + 13, def.description, {
+          fontSize: '9px', color: '#9ca3af', fontFamily: 'monospace',
         })
 
-        const btn = this.add.text(760, y + 19, '', {
-          fontSize: '13px', color: '#60a5fa', fontFamily: 'monospace',
-          backgroundColor: '#1e1b4b', padding: { x: 10, y: 4 },
+        const btn = this.add.text(762, y + 12, '', {
+          fontSize: '11px', color: '#60a5fa', fontFamily: 'monospace',
+          backgroundColor: '#1e1b4b', padding: { x: 8, y: 3 },
         }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true })
 
         btn.on('pointerdown', () => {
@@ -64,9 +64,9 @@ export class UpgradeScene extends Phaser.Scene {
         btn.on('pointerout', () => btn.setAlpha(1))
 
         this.upgradeButtons.set(id, btn)
-        y += 42
+        y += 26
       })
-      y += 4
+      y += 2
     })
 
     // ── Start Run button ───────────────────────────────────
@@ -89,15 +89,16 @@ export class UpgradeScene extends Phaser.Scene {
 
     this.statsText.setText([
       '🏰 Castle',
-      `❤️  HP:      ${castle.maxHp}`,
-      `🧱 Armor:   ${castle.armor}`,
-      `🛡️  Shield:   ${castle.maxShield}`,
-      `💚 Regen:   ${castle.regenPerSec}/s`,
-      `⛏️ Spikes:  ${castle.spikeDamage > 0 ? castle.spikeDamage : '—'}`,
-      '',
+      `❤️  HP      ${castle.maxHp}`,
+      `🧱 Armor   ${castle.armor}`,
+      `🛡️  Shield  ${castle.maxShield}`,
+      `💚 Regen   ${castle.regenPerSec}/s`,
+      `⛏️ Spikes  ${castle.spikeDamage > 0 ? castle.spikeDamage : '—'}`,
       '🧙 Fire Mage',
-      `🔥 Damage:  ${mage.damage}`,
-      `⚡ Cast:     ${mage.castInterval.toFixed(2)}s`,
+      `🔥 Damage  ${mage.damage}`,
+      `⚡ Cast    ${mage.castInterval.toFixed(2)}s`,
+      `🔷 Max MP  ${mage.maxMp}`,
+      `🌀 MP/s    ${mage.mpRegen}`,
     ])
 
     this.manaText.setText([

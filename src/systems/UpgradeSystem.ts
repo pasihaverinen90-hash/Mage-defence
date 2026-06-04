@@ -52,6 +52,8 @@ export const UpgradeSystem = {
     return {
       damage: Math.floor(b.baseDamage * damageMult),
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
+      maxMp: b.baseMaxMp + levels.maxMp * u.fireMageMaxMpPerLevel,
+      mpRegen: b.baseMpRegen + levels.mpRegen * u.fireMageMpRegenPerLevel,
     }
   },
 
