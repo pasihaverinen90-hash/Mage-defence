@@ -1,21 +1,21 @@
 export const BALANCE = {
-  mage: {
-    baseHp: 100,
-    baseDamage: 10,
-    baseCastInterval: 1.5, // seconds
-    baseDamageReduction: 0,
-  },
   castle: {
-    // Temporary flat starting Magic Shield until the castle upgrade tree exists.
+    baseHp: 100,
+    baseArmor: 0,
     baseShield: 40,
   },
+  fireMage: {
+    baseDamage: 10,
+    baseCastInterval: 1.5, // seconds
+  },
   upgrades: {
-    // per level multipliers / additions
-    spellPowerPerLevel: 0.15,    // +15% damage per level
-    maxHpPerLevel: 20,            // +20 HP per level
-    castSpeedPerLevel: 0.08,     // -8% interval per level
-    magicBarrierPerLevel: 3,     // +3 flat damage reduction per level
-    blueManaGainPerLevel: 0.15,  // +15% mana reward per level
+    // per-level additions / multipliers, keyed to upgrade definitions
+    castleMaxHpPerLevel: 20,           // +20 max HP per level
+    castleArmorPerLevel: 3,            // +3 flat damage reduction per level
+    castleStartingShieldPerLevel: 15,  // +15 Magic Shield per level
+    fireballDamagePerLevel: 0.15,      // +15% Fireball damage per level
+    fireballCastSpeedPerLevel: 0.08,   // -8% cast interval per level
+    blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {
     basePerWave: 5,

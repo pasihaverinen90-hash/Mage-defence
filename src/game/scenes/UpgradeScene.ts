@@ -1,13 +1,13 @@
 import Phaser from 'phaser'
 import { gameState } from '../../state/GameState'
 import { UpgradeSystem } from '../../systems/UpgradeSystem'
-import { UPGRADES, UPGRADE_ORDER } from '../../data/upgrades'
+import { UPGRADES, UPGRADE_SECTIONS } from '../../data/upgrades'
 const W = 800
 
 export class UpgradeScene extends Phaser.Scene {
   private manaText!: Phaser.GameObjects.Text
   private statsText!: Phaser.GameObjects.Text
-  private upgradeTexts: Map<string, Phaser.GameObjects.Text> = new Map()
+  private upgradeButtons: Map<string, Phaser.GameObjects.Text> = new Map()
 
   constructor() {
     super({ key: 'UpgradeScene' })
@@ -15,7 +15,7 @@ export class UpgradeScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#0a0a14')
-    this.upgradeTexts.clear()
+    this.upgradeButtons.clear()
 
     // ── Header ─────────────────────────────────────────────
     this.add.text(W / 2, 28, '🔮 Mage Arena', {
@@ -24,43 +24,49 @@ export class UpgradeScene extends Phaser.Scene {
 
     // ── Stats panel (left) ─────────────────────────────────
     this.drawPanel(20, 60, 250, 220)
-    this.add.text(30, 70, 'MAGE STATS', { fontSize: '13px', color: '#a78bfa', fontFamily: 'monospace' })
-    this.statsText = this.add.text(30, 90, '', { fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4 })
+    this.add.text(30, 70, 'STATS', { fontSize: '13px', color: '#a78bfa', fontFamily: 'monospace' })
+    this.statsText = this.add.text(30, 92, '', { fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4 })
 
     // ── Progress panel (left, below stats) ─────────────────
     this.drawPanel(20, 295, 250, 120)
     this.add.text(30, 305, 'PROGRESS', { fontSize: '13px', color: '#a78bfa', fontFamily: 'monospace' })
-    this.manaText = this.add.text(30, 325, '', { fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4 })
+    this.manaText = this.add.text(30, 327, '', { fontSize: '13px', color: '#e5e7eb', fontFamily: 'monospace', lineSpacing: 4 })
 
     // ── Upgrade panel (right) ──────────────────────────────
-    this.drawPanel(285, 60, 495, 430)
-    this.add.text(300, 70, 'UPGRADES', { fontSize: '13px', color: '#a78bfa', fontFamily: 'monospace' })
+    this.drawPanel(285, 60, 495, 440)
 
-    UPGRADE_ORDER.forEach((id, i) => {
-      const def = UPGRADES[id]
-      const y = 100 + i * 76
-      this.drawPanel(295, y, 475, 66, '#1a1a2e')
-      this.add.text(310, y + 8, `${def.emoji}  ${def.name}`, {
-        fontSize: '15px', color: '#c4b5fd', fontFamily: 'monospace',
+    let y = 78
+    UPGRADE_SECTIONS.forEach((section) => {
+      this.add.text(300, y, section.label, {
+        fontSize: '14px', color: '#a78bfa', fontFamily: 'monospace',
       })
-      this.add.text(310, y + 28, def.description, {
-        fontSize: '11px', color: '#9ca3af', fontFamily: 'monospace',
+      y += 24
+
+      section.upgradeIds.forEach((id) => {
+        const def = UPGRADES[id]
+        this.drawPanel(295, y, 475, 46, '#1a1a2e')
+        this.add.text(310, y + 5, `${def.emoji}  ${def.name}`, {
+          fontSize: '14px', color: '#c4b5fd', fontFamily: 'monospace',
+        })
+        this.add.text(310, y + 25, def.description, {
+          fontSize: '10px', color: '#9ca3af', fontFamily: 'monospace',
+        })
+
+        const btn = this.add.text(760, y + 23, '', {
+          fontSize: '13px', color: '#60a5fa', fontFamily: 'monospace',
+          backgroundColor: '#1e1b4b', padding: { x: 10, y: 6 },
+        }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true })
+
+        btn.on('pointerdown', () => {
+          if (UpgradeSystem.buyUpgrade(def)) this.refreshUI()
+        })
+        btn.on('pointerover', () => btn.setAlpha(0.8))
+        btn.on('pointerout', () => btn.setAlpha(1))
+
+        this.upgradeButtons.set(id, btn)
+        y += 50
       })
-
-      const btnText = this.add.text(700, y + 20, '', {
-        fontSize: '13px', color: '#60a5fa', fontFamily: 'monospace',
-        backgroundColor: '#1e1b4b', padding: { x: 10, y: 6 },
-      }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true })
-
-      btnText.on('pointerdown', () => {
-        if (UpgradeSystem.buyUpgrade(id)) {
-          this.refreshUI()
-        }
-      })
-      btnText.on('pointerover', () => btnText.setAlpha(0.8))
-      btnText.on('pointerout', () => btnText.setAlpha(1))
-
-      this.upgradeTexts.set(id, btnText)
+      y += 6
     })
 
     // ── Start Run button ───────────────────────────────────
@@ -77,15 +83,19 @@ export class UpgradeScene extends Phaser.Scene {
   }
 
   private refreshUI() {
-    const levels = gameState.upgradeLevels
-    const stats = UpgradeSystem.computeMageStats(levels)
+    const u = gameState.upgrades
+    const castle = UpgradeSystem.resolveCastle(u.castle)
+    const mage = UpgradeSystem.resolveFireMage(u.defenders.fireMage)
 
     this.statsText.setText([
-      `🧙 Mage`,
-      `❤️  HP:        ${stats.maxHp}`,
-      `🔥 Damage:   ${stats.damage}`,
-      `⚡ Cast:      ${stats.castInterval.toFixed(2)}s`,
-      `🛡️  Barrier:   ${stats.damageReduction}`,
+      '🏰 Castle',
+      `❤️  HP:      ${castle.maxHp}`,
+      `🧱 Armor:   ${castle.armor}`,
+      `🛡️  Shield:   ${castle.maxShield}`,
+      '',
+      '🧙 Fire Mage',
+      `🔥 Damage:  ${mage.damage}`,
+      `⚡ Cast:     ${mage.castInterval.toFixed(2)}s`,
     ])
 
     this.manaText.setText([
@@ -94,21 +104,23 @@ export class UpgradeScene extends Phaser.Scene {
       `🔄 Total Runs: ${gameState.totalRuns}`,
     ])
 
-    UPGRADE_ORDER.forEach((id) => {
-      const level = (levels as unknown as Record<string, number>)[id]
-      const def = UPGRADES[id]
-      const btn = this.upgradeTexts.get(id)
-      if (!btn) return
+    UPGRADE_SECTIONS.forEach((section) => {
+      section.upgradeIds.forEach((id) => {
+        const def = UPGRADES[id]
+        const level = gameState.getUpgradeLevel(def.category, def.field)
+        const btn = this.upgradeButtons.get(id)
+        if (!btn) return
 
-      if (level >= def.maxLevel) {
-        btn.setText(' MAX ')
-        btn.setColor('#6b7280')
-      } else {
-        const cost = UpgradeSystem.getCost(id, level)
-        const canAfford = gameState.blueMana >= cost
-        btn.setText(` Lv${level} → ${cost}💧 `)
-        btn.setColor(canAfford ? '#60a5fa' : '#6b7280')
-      }
+        if (level >= def.maxLevel) {
+          btn.setText(' MAX ')
+          btn.setColor('#6b7280')
+        } else {
+          const cost = UpgradeSystem.getCost(def, level)
+          const canAfford = gameState.blueMana >= cost
+          btn.setText(` Lv${level} → ${cost}💧 `)
+          btn.setColor(canAfford ? '#60a5fa' : '#6b7280')
+        }
+      })
     })
   }
 

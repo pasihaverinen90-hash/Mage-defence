@@ -1,4 +1,4 @@
-import type { SaveData, UpgradeLevels } from '../types/game'
+import type { SaveData, UpgradeState, UpgradeCategory } from '../types/game'
 import { SaveSystem } from './SaveSystem'
 
 // Singleton holding current runtime state derived from save data.
@@ -17,8 +17,8 @@ class GameState {
     return this._data.blueMana
   }
 
-  get upgradeLevels(): UpgradeLevels {
-    return this._data.upgradeLevels
+  get upgrades(): UpgradeState {
+    return this._data.upgrades
   }
 
   get highestWaveEver(): number {
@@ -44,8 +44,13 @@ class GameState {
     this.persist()
   }
 
-  incrementUpgrade(id: keyof UpgradeLevels): void {
-    this._data.upgradeLevels[id] += 1
+  getUpgradeLevel(category: UpgradeCategory, field: string): number {
+    return this.levelsFor(category)[field] ?? 0
+  }
+
+  incrementUpgrade(category: UpgradeCategory, field: string): void {
+    const levels = this.levelsFor(category)
+    levels[field] = (levels[field] ?? 0) + 1
     this.persist()
   }
 
@@ -64,6 +69,14 @@ class GameState {
   reset(): void {
     SaveSystem.reset()
     this._data = SaveSystem.load()
+  }
+
+  // Route an upgrade category to its mutable level block in the save.
+  private levelsFor(category: UpgradeCategory): Record<string, number> {
+    const up = this._data.upgrades
+    if (category === 'castle') return up.castle as unknown as Record<string, number>
+    if (category === 'fireMage') return up.defenders.fireMage as unknown as Record<string, number>
+    return up.global as unknown as Record<string, number>
   }
 
   private persist(): void {

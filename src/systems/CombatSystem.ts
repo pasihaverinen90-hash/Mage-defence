@@ -1,7 +1,7 @@
-import type { MageStats, CastleState } from '../types/game'
+import type { FireMageStats, CastleState } from '../types/game'
 
 export const CombatSystem = {
-  mageAttack(stats: MageStats): number {
+  mageAttack(stats: FireMageStats): number {
     return stats.damage
   },
 

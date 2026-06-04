@@ -5,7 +5,7 @@ import { WaveSystem } from '../../systems/WaveSystem'
 import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
-import type { MageStats, CastleState, EnemyDefinition, RunEnemy } from '../../types/game'
+import type { FireMageStats, CastleState, EnemyDefinition, RunEnemy } from '../../types/game'
 
 const W = 800
 
@@ -18,7 +18,7 @@ const FLOOR_BOTTOM = 325
 
 interface RunState {
   castle: CastleState
-  mageStats: MageStats
+  mageStats: FireMageStats
   wave: number
   highestWaveThisRun: number
   killCount: number
@@ -74,20 +74,20 @@ export class RunScene extends Phaser.Scene {
     this.views.clear()
     this.nextEnemyId = 0
 
-    const stats = UpgradeSystem.computeMageStats(gameState.upgradeLevels)
+    const upgrades = gameState.upgrades
+    const castleStats = UpgradeSystem.resolveCastle(upgrades.castle)
+    const mageStats = UpgradeSystem.resolveFireMage(upgrades.defenders.fireMage)
 
     this.run = {
-      // Derive castle stats from existing upgrades (no save migration yet):
-      // maxHp upgrade → castle Max HP, magicBarrier upgrade → castle armor.
-      // Magic Shield starts full from a temporary flat balance value.
+      // Castle HP/armor/shield all reset to full from resolved upgrade stats.
       castle: {
-        hp: stats.maxHp,
-        maxHp: stats.maxHp,
-        armor: stats.damageReduction,
-        shield: BALANCE.castle.baseShield,
-        maxShield: BALANCE.castle.baseShield,
+        hp: castleStats.maxHp,
+        maxHp: castleStats.maxHp,
+        armor: castleStats.armor,
+        shield: castleStats.maxShield,
+        maxShield: castleStats.maxShield,
       },
-      mageStats: stats,
+      mageStats,
       wave: 1,
       highestWaveThisRun: 1,
       killCount: 0,
@@ -95,7 +95,7 @@ export class RunScene extends Phaser.Scene {
       survivalTime: 0,
       spawnTimer: BALANCE.spawn.initialDelaySeconds,
       waveTimer: BALANCE.wave.secondsPerWave,
-      mageAttackTimer: stats.castInterval,
+      mageAttackTimer: mageStats.castInterval,
       speed: 1,
       running: true,
       finished: false,
@@ -424,7 +424,11 @@ export class RunScene extends Phaser.Scene {
     this.run.running = false
     this.run.finished = true
 
-    const reward = RewardSystem.calculateBlueMana(this.run.highestWaveThisRun, this.run.killCount, gameState.upgradeLevels)
+    const reward = RewardSystem.calculateBlueMana(
+      this.run.highestWaveThisRun,
+      this.run.killCount,
+      gameState.upgrades.global.blueManaGain,
+    )
     gameState.recordRunEnd(this.run.highestWaveThisRun, reward)
 
     this.log(reason)
