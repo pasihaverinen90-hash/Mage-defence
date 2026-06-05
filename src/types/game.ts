@@ -38,6 +38,48 @@ export interface DefenderRuntimeState {
   mp: number
   maxMp: number
   mpRegen: number // MP per second
+  skills: SkillRuntimeState[]
+}
+
+// ── Manual skills (Fire Mage now; future recruits later) ───────
+export interface SkillDefinition {
+  id: string
+  name: string
+  emoji: string
+  mpCost: number
+  cooldownSec: number
+  targeting: 'pointX' | 'area' | 'none' // Fire Wall = pointX
+  effectKind: 'fireWall'
+}
+
+export interface SkillRuntimeState {
+  definition: SkillDefinition
+  cooldownTimer: number // seconds remaining; 0 = ready
+}
+
+// Resolved (per-cast) Fire Wall parameters from upgrade levels.
+export interface FireWallStats {
+  tickDamage: number
+  tickInterval: number
+  durationSec: number
+  width: number
+  height: number
+}
+
+// A timed area-of-effect zone on the battlefield (Fire Wall now; Firestorm/
+// Elemental later). Damages enemies inside on a tick; never touches the castle
+// or defenders.
+export interface FieldEffect {
+  id: string
+  kind: 'fireWall'
+  x: number
+  y: number
+  width: number
+  height: number
+  tickDamage: number
+  tickInterval: number
+  tickTimer: number
+  remainingSec: number
 }
 
 // Resolved (per-run) castle stats derived from castle upgrade levels.

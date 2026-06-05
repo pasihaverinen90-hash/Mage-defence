@@ -1,6 +1,7 @@
 import type {
   CastleStats,
   FireMageStats,
+  FireWallStats,
   CastleUpgradeLevels,
   FireMageUpgradeLevels,
   UpgradeDefinition,
@@ -54,6 +55,21 @@ export const UpgradeSystem = {
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
       maxMp: b.baseMaxMp + levels.maxMp * u.fireMageMaxMpPerLevel,
       mpRegen: b.baseMpRegen + levels.mpRegen * u.fireMageMpRegenPerLevel,
+    }
+  },
+
+  // Fire Wall scales with its (already-persisted) upgrade levels. Levels are 0
+  // until the upgrades are surfaced for purchase, so this returns base values
+  // today and scales automatically once they are buyable.
+  resolveFireWall(levels: FireMageUpgradeLevels): FireWallStats {
+    const b = BALANCE.fireMage.fireWall
+    const u = BALANCE.upgrades
+    return {
+      tickDamage: b.baseTickDamage + levels.fireWallDamage * u.fireWallDamagePerLevel,
+      tickInterval: b.tickInterval,
+      durationSec: b.baseDurationSec + levels.fireWallDuration * u.fireWallDurationPerLevel,
+      width: b.baseWidth + levels.fireWallSize * u.fireWallSizePerLevel,
+      height: b.height,
     }
   },
 

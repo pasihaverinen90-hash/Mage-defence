@@ -6,7 +6,11 @@ import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
 import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
-import type { CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState, Projectile } from '../../types/game'
+import { FIRE_MAGE_SKILLS } from '../../data/skills'
+import type {
+  CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState,
+  Projectile, SkillRuntimeState, FieldEffect,
+} from '../../types/game'
 
 const W = 800
 
@@ -49,6 +53,12 @@ export class RunScene extends Phaser.Scene {
   private projectiles: Projectile[] = []
   private projectileViews: Map<string, Phaser.GameObjects.Text> = new Map()
   private nextProjectileId = 0
+  private fieldEffects: FieldEffect[] = []
+  private effectViews: Map<string, Phaser.GameObjects.Container> = new Map()
+  private nextEffectId = 0
+  private skillButtons: Map<string, Phaser.GameObjects.Text> = new Map()
+  private placementSkill: SkillRuntimeState | null = null
+  private placementGhost!: Phaser.GameObjects.Rectangle
 
   // UI refs
   private waveText!: Phaser.GameObjects.Text
@@ -83,6 +93,11 @@ export class RunScene extends Phaser.Scene {
     this.projectiles = []
     this.projectileViews.clear()
     this.nextProjectileId = 0
+    this.fieldEffects = []
+    this.effectViews.clear()
+    this.nextEffectId = 0
+    this.skillButtons.clear()
+    this.placementSkill = null
 
     const upgrades = gameState.upgrades
     const castleStats = UpgradeSystem.resolveCastle(upgrades.castle)
@@ -102,6 +117,7 @@ export class RunScene extends Phaser.Scene {
       mp: 0, // defined starting value — regenerates toward maxMp during the run
       maxMp: mageStats.maxMp,
       mpRegen: mageStats.mpRegen,
+      skills: FIRE_MAGE_SKILLS.map((def) => ({ definition: def, cooldownTimer: 0 })),
     }
 
     this.run = {
@@ -131,6 +147,7 @@ export class RunScene extends Phaser.Scene {
     }
 
     this.buildUI()
+    this.setupSkillInput()
     this.announceWave()
   }
 
@@ -169,6 +186,22 @@ export class RunScene extends Phaser.Scene {
     endBtn.on('pointerdown', () => this.endRun('You ended the run.'))
     endBtn.on('pointerover', () => endBtn.setAlpha(0.8))
     endBtn.on('pointerout', () => endBtn.setAlpha(1))
+
+    // Skill buttons (one per Fire Mage skill) in the controls strip.
+    let sx = 360
+    for (const skill of this.run.defenders[0].skills) {
+      const btn = this.add.text(sx, 70, '', {
+        fontSize: '14px', color: '#fbbf24', fontFamily: 'monospace',
+        backgroundColor: '#2a1505', padding: { x: 10, y: 5 },
+      }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
+      btn.on('pointerdown', () => this.onSkillButton(skill))
+      this.skillButtons.set(skill.definition.id, btn)
+      sx += 180
+    }
+
+    // Translucent placement preview for the currently-targeted skill.
+    this.placementGhost = this.add.rectangle(0, LANE_Y, 46, 190, 0xf97316, 0.25)
+      .setStrokeStyle(1, 0xfb923c).setVisible(false)
 
     // Arena floor (the battlefield)
     this.drawPanel(20, FLOOR_TOP, 760, FLOOR_BOTTOM - FLOOR_TOP, '#0c1320')
@@ -249,8 +282,101 @@ export class RunScene extends Phaser.Scene {
 
     this.updateCastleUI()
     this.updateDefenderUI()
+    this.updateSkillButtons()
     this.killText.setText('Kills: 0')
     this.bestText.setText(`Best: ${gameState.highestWaveEver}`)
+  }
+
+  // ── Manual skills: input, placement, cooldowns ───────────
+  private setupSkillInput() {
+    this.input.mouse?.disableContextMenu()
+
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (this.placementSkill) this.placementGhost.x = this.clampPlacementX(p.x)
+    })
+
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (!this.placementSkill) return
+      if (p.rightButtonDown()) {
+        this.cancelPlacement()
+        return
+      }
+      // Only a click on the battlefield places the skill (button strip is above).
+      if (p.y >= FLOOR_TOP && p.y <= FLOOR_BOTTOM) {
+        this.placeSkill(this.placementSkill, this.clampPlacementX(p.x))
+      }
+    })
+
+    this.input.keyboard?.on('keydown-ESC', () => this.cancelPlacement())
+  }
+
+  private clampPlacementX(x: number): number {
+    return Phaser.Math.Clamp(x, 165, 745)
+  }
+
+  private onSkillButton(skill: SkillRuntimeState) {
+    if (this.placementSkill === skill) {
+      this.cancelPlacement()
+      return
+    }
+    const hero = this.run.defenders[0]
+    if (skill.cooldownTimer > 0 || hero.mp < skill.definition.mpCost) return
+    this.enterPlacement(skill)
+  }
+
+  private enterPlacement(skill: SkillRuntimeState) {
+    this.placementSkill = skill
+    const fw = UpgradeSystem.resolveFireWall(gameState.upgrades.defenders.fireMage)
+    this.placementGhost.setSize(fw.width, fw.height)
+    this.placementGhost.x = this.clampPlacementX(this.input.activePointer.x)
+    this.placementGhost.setVisible(true)
+    this.updateSkillButtons()
+    this.log('🔥 Fire Wall — click the battlefield (Esc / right-click cancels)')
+  }
+
+  private cancelPlacement() {
+    if (!this.placementSkill) return
+    this.placementSkill = null
+    this.placementGhost.setVisible(false)
+    this.updateSkillButtons()
+  }
+
+  private placeSkill(skill: SkillRuntimeState, x: number) {
+    const hero = this.run.defenders[0]
+    const def = skill.definition
+    if (skill.cooldownTimer > 0 || hero.mp < def.mpCost) {
+      this.cancelPlacement()
+      return
+    }
+    hero.mp -= def.mpCost
+    skill.cooldownTimer = def.cooldownSec
+    this.spawnFireWall(x)
+    this.cancelPlacement()
+    this.updateDefenderUI()
+    this.updateSkillButtons()
+    this.log(`🔥 Fire Wall placed (-${def.mpCost} MP)`)
+  }
+
+  private updateSkillButtons() {
+    const hero = this.run.defenders[0]
+    for (const skill of hero.skills) {
+      const btn = this.skillButtons.get(skill.definition.id)
+      if (!btn) continue
+      const def = skill.definition
+      if (skill.cooldownTimer > 0) {
+        btn.setText(`${def.emoji} ${skill.cooldownTimer.toFixed(1)}s`)
+        btn.setColor('#6b7280')
+      } else if (hero.mp < def.mpCost) {
+        btn.setText(`${def.emoji} ${def.name} (${def.mpCost})`)
+        btn.setColor('#6b7280')
+      } else if (this.placementSkill === skill) {
+        btn.setText(`${def.emoji} place…`)
+        btn.setColor('#fde68a')
+      } else {
+        btn.setText(`${def.emoji} ${def.name} (${def.mpCost})`)
+        btn.setColor('#fbbf24')
+      }
+    }
   }
 
   // ── Wave / spawn management ──────────────────────────────
@@ -302,6 +428,7 @@ export class RunScene extends Phaser.Scene {
     this.updateSpawning(dt)
     this.updateRegen(dt)
     this.updateSpikes(dt)
+    this.updateFieldEffects(dt)
     this.updateDefenders(dt)
     this.updateEnemies(dt)
     this.updateProjectiles(dt)
@@ -364,9 +491,13 @@ export class RunScene extends Phaser.Scene {
   private updateDefenders(dt: number) {
     for (const d of this.run.defenders) {
       if (d.mp < d.maxMp) d.mp = Math.min(d.maxMp, d.mp + d.mpRegen * dt)
+      for (const skill of d.skills) {
+        if (skill.cooldownTimer > 0) skill.cooldownTimer = Math.max(0, skill.cooldownTimer - dt)
+      }
       this.updateDefenderBasicAttack(d, dt)
     }
     this.updateDefenderUI()
+    this.updateSkillButtons()
   }
 
   private updateDefenderBasicAttack(d: DefenderRuntimeState, dt: number) {
@@ -496,6 +627,92 @@ export class RunScene extends Phaser.Scene {
     this.projectiles = []
   }
 
+  // ── Field effects (Fire Wall) ────────────────────────────
+  private spawnFireWall(x: number) {
+    const fw = UpgradeSystem.resolveFireWall(gameState.upgrades.defenders.fireMage)
+    const effect: FieldEffect = {
+      id: `fx${this.nextEffectId++}`,
+      kind: 'fireWall',
+      x,
+      y: LANE_Y,
+      width: fw.width,
+      height: fw.height,
+      tickDamage: fw.tickDamage,
+      tickInterval: fw.tickInterval,
+      tickTimer: fw.tickInterval,
+      remainingSec: fw.durationSec,
+    }
+    this.fieldEffects.push(effect)
+
+    const rect = this.add.rectangle(0, 0, effect.width, effect.height, 0xf97316, 0.35)
+      .setStrokeStyle(1, 0xfb923c)
+    const flame = this.add.text(0, -effect.height / 2 + 2, '🔥', { fontSize: '20px' }).setOrigin(0.5)
+    const container = this.add.container(effect.x, effect.y, [rect, flame])
+    this.effectViews.set(effect.id, container)
+    this.tweens.add({
+      targets: rect, alpha: { from: 0.22, to: 0.42 },
+      duration: 380, yoyo: true, repeat: -1,
+    })
+  }
+
+  private updateFieldEffects(dt: number) {
+    if (this.fieldEffects.length === 0) return
+
+    const survivors: FieldEffect[] = []
+    for (const fx of this.fieldEffects) {
+      fx.remainingSec -= dt
+      fx.tickTimer -= dt
+      if (fx.tickTimer <= 0) {
+        fx.tickTimer = fx.tickInterval
+        this.applyFireWallTick(fx)
+      }
+      if (fx.remainingSec <= 0) {
+        this.destroyEffectView(fx.id)
+      } else {
+        survivors.push(fx)
+      }
+    }
+    this.fieldEffects = survivors
+  }
+
+  // Damage every enemy currently inside the zone (never the castle/defenders).
+  private applyFireWallTick(fx: FieldEffect) {
+    const halfW = fx.width / 2
+    const top = fx.y - fx.height / 2
+    const bottom = fx.y + fx.height / 2
+    let hits = 0
+    for (const enemy of [...this.activeEnemies]) {
+      if (
+        enemy.x >= fx.x - halfW && enemy.x <= fx.x + halfW &&
+        enemy.y >= top && enemy.y <= bottom
+      ) {
+        enemy.hp = Math.max(0, enemy.hp - fx.tickDamage)
+        hits++
+        if (enemy.hp <= 0) {
+          this.killEnemy(enemy)
+        } else {
+          this.updateEnemyView(enemy)
+          this.popEnemy(enemy)
+        }
+      }
+    }
+    if (hits > 0) this.log(`🔥 Fire Wall burns ${hits} for ${fx.tickDamage}`)
+  }
+
+  private destroyEffectView(id: string) {
+    const view = this.effectViews.get(id)
+    if (view) {
+      view.destroy()
+      this.effectViews.delete(id)
+    }
+  }
+
+  private clearFieldEffects() {
+    for (const view of this.effectViews.values()) view.destroy()
+    this.effectViews.clear()
+    this.fieldEffects = []
+  }
+
   private getClosestEnemy(): RunEnemy | null {
     let closest: RunEnemy | null = null
     for (const e of this.activeEnemies) {
@@ -617,7 +834,9 @@ export class RunScene extends Phaser.Scene {
     if (this.run.finished) return
     this.run.running = false
     this.run.finished = true
+    this.cancelPlacement()
     this.clearProjectiles()
+    this.clearFieldEffects()
 
     const reward = RewardSystem.calculateBlueMana(
       this.run.highestWaveThisRun,

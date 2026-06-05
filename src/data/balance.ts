@@ -12,6 +12,15 @@ export const BALANCE = {
     baseCastInterval: 1.5, // seconds
     baseMaxMp: 100,
     baseMpRegen: 5, // MP/sec
+    fireWall: {
+      mpCost: 30,
+      cooldownSec: 6,
+      baseTickDamage: 8,
+      tickInterval: 0.5, // seconds between burns
+      baseDurationSec: 4,
+      baseWidth: 46, // x-thickness of the burning zone
+      height: 190, // covers the full enemy band
+    },
   },
   upgrades: {
     // per-level additions / multipliers, keyed to upgrade definitions
@@ -25,6 +34,9 @@ export const BALANCE = {
     fireballCastSpeedPerLevel: 0.08,   // -8% cast interval per level
     fireMageMaxMpPerLevel: 20,         // +20 max MP per level
     fireMageMpRegenPerLevel: 1,        // +1 MP/sec per level
+    fireWallDamagePerLevel: 2,         // +2 tick damage per level
+    fireWallDurationPerLevel: 0.5,     // +0.5s duration per level
+    fireWallSizePerLevel: 8,           // +8 width per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {
