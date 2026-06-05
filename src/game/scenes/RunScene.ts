@@ -6,12 +6,12 @@ import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
 import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
-import { FIRE_MAGE_SKILLS } from '../../data/skills'
+import { FIRE_MAGE_SKILLS, LIGHTNING_MAGE_SKILLS } from '../../data/skills'
 import { RECRUITS } from '../../data/recruits'
 import type {
   CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState, DefenderDefinition,
   DefenderSlotId, DefenderBasicStats, Projectile, SkillRuntimeState, SkillDefinition,
-  FieldEffect, Summon, UpgradeState,
+  FieldEffect, Summon, UpgradeState, ChainLightningStats,
 } from '../../types/game'
 
 const W = 800
@@ -68,8 +68,13 @@ export class RunScene extends Phaser.Scene {
   private summons: Summon[] = []
   private summonViews: Map<string, SummonView> = new Map()
   private nextSummonId = 0
-  private skillButtons: Map<string, Phaser.GameObjects.Text> = new Map()
+  private skillButtonEntries: {
+    btn: Phaser.GameObjects.Text
+    defender: DefenderRuntimeState
+    skill: SkillRuntimeState
+  }[] = []
   private placementSkill: SkillRuntimeState | null = null
+  private placementDefender: DefenderRuntimeState | null = null
   private placementGhost!: Phaser.GameObjects.Rectangle
   private placementGhostCircle!: Phaser.GameObjects.Arc
   private activeGhost: Phaser.GameObjects.Shape | null = null
@@ -113,8 +118,9 @@ export class RunScene extends Phaser.Scene {
     this.summons = []
     this.summonViews.clear()
     this.nextSummonId = 0
-    this.skillButtons.clear()
+    this.skillButtonEntries = []
     this.placementSkill = null
+    this.placementDefender = null
     this.activeGhost = null
     this.defenderSprites.clear()
 
@@ -165,14 +171,22 @@ export class RunScene extends Phaser.Scene {
       const recruitId = gameState.loadout[slot]
       if (!recruitId || !gameState.ownsRecruit(recruitId) || !RECRUITS[recruitId]) continue
       const stats = this.resolveRecruitStats(recruitId, upgrades)
-      if (stats) defenders.push(this.makeDefender(slotId, RECRUITS[recruitId].definition, stats, []))
+      if (stats) {
+        defenders.push(this.makeDefender(slotId, RECRUITS[recruitId].definition, stats, this.recruitSkillDefs(recruitId)))
+      }
     }
     return defenders
   }
 
   private resolveRecruitStats(recruitId: string, upgrades: UpgradeState): DefenderBasicStats | null {
     if (recruitId === 'iceMage') return UpgradeSystem.resolveIceMage(upgrades.defenders.iceMage)
+    if (recruitId === 'lightningMage') return UpgradeSystem.resolveLightningMage(upgrades.defenders.lightningMage)
     return null
+  }
+
+  private recruitSkillDefs(recruitId: string): SkillDefinition[] {
+    if (recruitId === 'lightningMage') return LIGHTNING_MAGE_SKILLS
+    return []
   }
 
   private makeDefender(
@@ -233,16 +247,18 @@ export class RunScene extends Phaser.Scene {
     endBtn.on('pointerover', () => endBtn.setAlpha(0.8))
     endBtn.on('pointerout', () => endBtn.setAlpha(1))
 
-    // Compact skill buttons (emoji + MP cost) in the controls strip.
-    let sx = 264
-    for (const skill of this.run.defenders[0].skills) {
-      const btn = this.add.text(sx, 70, '', {
-        fontSize: '14px', color: '#fbbf24', fontFamily: 'monospace',
-        backgroundColor: '#2a1505', padding: { x: 8, y: 5 },
-      }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
-      btn.on('pointerdown', () => this.onSkillButton(skill))
-      this.skillButtons.set(skill.definition.id, btn)
-      sx += 84
+    // Compact skill buttons (emoji + MP cost) for every defender's skills.
+    let sx = 258
+    for (const defender of this.run.defenders) {
+      for (const skill of defender.skills) {
+        const btn = this.add.text(sx, 70, '', {
+          fontSize: '13px', color: '#fbbf24', fontFamily: 'monospace',
+          backgroundColor: '#2a1505', padding: { x: 6, y: 5 },
+        }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
+        btn.on('pointerdown', () => this.onSkillButton(defender, skill))
+        this.skillButtonEntries.push({ btn, defender, skill })
+        sx += 64
+      }
     }
 
     // Translucent placement previews (rect for Fire Wall, circle for Firestorm).
@@ -360,7 +376,7 @@ export class RunScene extends Phaser.Scene {
       }
       // Only a click on the battlefield places the skill (button strip is above).
       if (p.y >= FLOOR_TOP && p.y <= FLOOR_BOTTOM) {
-        this.placeSkill(this.placementSkill, this.clampPlacementX(p.x), this.clampPlacementY(p.y))
+        this.placeSkill(this.clampPlacementX(p.x), this.clampPlacementY(p.y))
       }
     })
 
@@ -379,18 +395,22 @@ export class RunScene extends Phaser.Scene {
     return skill.definition.effectKind !== 'fireWall' // firestorm + fire elemental take an x+y point
   }
 
-  private onSkillButton(skill: SkillRuntimeState) {
+  private onSkillButton(defender: DefenderRuntimeState, skill: SkillRuntimeState) {
     if (this.placementSkill === skill) {
       this.cancelPlacement()
       return
     }
-    const hero = this.run.defenders[0]
-    if (skill.cooldownTimer > 0 || hero.mp < skill.definition.mpCost) return
-    this.enterPlacement(skill)
+    if (skill.cooldownTimer > 0 || defender.mp < skill.definition.mpCost) return
+    if (skill.definition.targeting === 'none') {
+      this.castInstantSkill(defender, skill)
+    } else {
+      this.enterPlacement(defender, skill)
+    }
   }
 
-  private enterPlacement(skill: SkillRuntimeState) {
+  private enterPlacement(defender: DefenderRuntimeState, skill: SkillRuntimeState) {
     this.placementSkill = skill
+    this.placementDefender = defender
     const levels = gameState.upgrades.defenders.fireMage
     const p = this.input.activePointer
     const kind = skill.definition.effectKind
@@ -416,20 +436,23 @@ export class RunScene extends Phaser.Scene {
   private cancelPlacement() {
     if (!this.placementSkill) return
     this.placementSkill = null
+    this.placementDefender = null
     this.activeGhost = null
     this.placementGhost.setVisible(false)
     this.placementGhostCircle.setVisible(false)
     this.updateSkillButtons()
   }
 
-  private placeSkill(skill: SkillRuntimeState, x: number, y: number) {
-    const hero = this.run.defenders[0]
+  private placeSkill(x: number, y: number) {
+    const defender = this.placementDefender
+    const skill = this.placementSkill
+    if (!defender || !skill) return
     const def = skill.definition
-    if (skill.cooldownTimer > 0 || hero.mp < def.mpCost) {
+    if (skill.cooldownTimer > 0 || defender.mp < def.mpCost) {
       this.cancelPlacement()
       return
     }
-    hero.mp -= def.mpCost
+    defender.mp -= def.mpCost
     skill.cooldownTimer = def.cooldownSec
     if (def.effectKind === 'fireElemental') this.spawnFireElemental(x, y)
     else if (def.effectKind === 'firestorm') this.spawnFirestorm(x, y)
@@ -440,20 +463,88 @@ export class RunScene extends Phaser.Scene {
     this.log(`${def.emoji} ${def.name} placed (-${def.mpCost} MP)`)
   }
 
+  // Instant (no-placement) skills fire immediately on the closest enemy.
+  private castInstantSkill(defender: DefenderRuntimeState, skill: SkillRuntimeState) {
+    if (skill.definition.effectKind !== 'chainLightning') return
+    const first = this.getClosestEnemy()
+    if (!first) return // nothing to hit — don't spend MP
+
+    const cfg = UpgradeSystem.resolveChainLightning(gameState.upgrades.defenders.lightningMage)
+    defender.mp -= skill.definition.mpCost
+    skill.cooldownTimer = cfg.cooldownSec
+    this.applyChainLightning(defender, first, cfg)
+    this.updateDefenderUI()
+    this.updateSkillButtons()
+  }
+
+  private applyChainLightning(defender: DefenderRuntimeState, first: RunEnemy, cfg: ChainLightningStats) {
+    // Build the full chain first so kills mid-apply don't break jump targeting.
+    const chain: RunEnemy[] = [first]
+    let current = first
+    for (let j = 0; j < cfg.jumps; j++) {
+      const next = this.nearestEnemyExcluding(current, chain, cfg.jumpRadius)
+      if (!next) break
+      chain.push(next)
+      current = next
+    }
+
+    let dmg = cfg.damage
+    let prevX = defender.x
+    let prevY = defender.y
+    for (const e of chain) {
+      const d = Math.max(1, Math.floor(dmg))
+      e.hp = Math.max(0, e.hp - d)
+      this.chainArcVisual(prevX, prevY, e.x, e.y)
+      prevX = e.x
+      prevY = e.y
+      if (e.hp <= 0) this.killEnemy(e)
+      else this.updateEnemyView(e)
+      dmg *= cfg.falloff
+    }
+    this.log(`⚡ Chain Lightning hits ${chain.length}`)
+  }
+
+  private nearestEnemyExcluding(from: RunEnemy, exclude: RunEnemy[], radius: number): RunEnemy | null {
+    let best: RunEnemy | null = null
+    let bestD = radius * radius
+    for (const e of this.activeEnemies) {
+      if (exclude.includes(e)) continue
+      const dx = e.x - from.x
+      const dy = e.y - from.y
+      const d = dx * dx + dy * dy
+      if (d <= bestD) {
+        best = e
+        bestD = d
+      }
+    }
+    return best
+  }
+
+  private chainArcVisual(x1: number, y1: number, x2: number, y2: number) {
+    const line = this.add.line(0, 0, x1, y1, x2, y2, 0x93c5fd)
+      .setOrigin(0, 0).setLineWidth(2).setDepth(40)
+    this.tweens.add({
+      targets: line, alpha: { from: 0.9, to: 0 },
+      duration: 240 / this.run.speed, onComplete: () => line.destroy(),
+    })
+    const spark = this.add.text(x2, y2, '⚡', { fontSize: '20px' }).setOrigin(0.5).setDepth(40)
+    this.tweens.add({
+      targets: spark, alpha: { from: 1, to: 0 }, scale: { from: 1.3, to: 0.7 },
+      duration: 260 / this.run.speed, onComplete: () => spark.destroy(),
+    })
+  }
+
   private updateSkillButtons() {
-    const hero = this.run.defenders[0]
-    for (const skill of hero.skills) {
-      const btn = this.skillButtons.get(skill.definition.id)
-      if (!btn) continue
+    for (const { btn, defender, skill } of this.skillButtonEntries) {
       const def = skill.definition
       if (skill.cooldownTimer > 0) {
-        btn.setText(`${def.emoji} ${skill.cooldownTimer.toFixed(1)}s`)
+        btn.setText(`${def.emoji} ${Math.ceil(skill.cooldownTimer)}`)
         btn.setColor('#6b7280')
-      } else if (hero.mp < def.mpCost) {
+      } else if (defender.mp < def.mpCost) {
         btn.setText(`${def.emoji} ${def.mpCost}`)
         btn.setColor('#6b7280')
       } else if (this.placementSkill === skill) {
-        btn.setText(`${def.emoji} ${def.mpCost}`)
+        btn.setText(`${def.emoji} …`)
         btn.setColor('#fde68a')
       } else {
         btn.setText(`${def.emoji} ${def.mpCost}`)

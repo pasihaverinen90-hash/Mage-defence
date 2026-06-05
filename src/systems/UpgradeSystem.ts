@@ -5,9 +5,11 @@ import type {
   FireWallStats,
   FirestormStats,
   FireElementalStats,
+  ChainLightningStats,
   CastleUpgradeLevels,
   FireMageUpgradeLevels,
   IceMageUpgradeLevels,
+  LightningMageUpgradeLevels,
   UpgradeDefinition,
 } from '../types/game'
 import { BALANCE } from '../data/balance'
@@ -72,6 +74,34 @@ export const UpgradeSystem = {
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
       maxMp: b.baseMaxMp + levels.maxMp * u.iceMageMaxMpPerLevel,
       mpRegen: b.baseMpRegen + levels.mpRegen * u.iceMageMpRegenPerLevel,
+    }
+  },
+
+  resolveLightningMage(levels: LightningMageUpgradeLevels): DefenderBasicStats {
+    const b = BALANCE.lightningMage
+    const u = BALANCE.upgrades
+    const damageMult = 1 + levels.lightningBoltDamage * u.lightningBoltDamagePerLevel
+    const intervalMult = Math.max(0.3, 1 - levels.lightningBoltCastSpeed * u.lightningBoltCastSpeedPerLevel)
+    return {
+      damage: Math.floor(b.baseDamage * damageMult),
+      castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
+      maxMp: b.baseMaxMp + levels.maxMp * u.lightningMageMaxMpPerLevel,
+      mpRegen: b.baseMpRegen + levels.mpRegen * u.lightningMageMpRegenPerLevel,
+    }
+  },
+
+  resolveChainLightning(levels: LightningMageUpgradeLevels): ChainLightningStats {
+    const b = BALANCE.lightningMage.chainLightning
+    const u = BALANCE.upgrades
+    return {
+      damage: b.baseDamage + levels.chainLightningDamage * u.chainLightningDamagePerLevel,
+      jumps: b.baseJumps + levels.chainLightningJumps * u.chainLightningJumpsPerLevel,
+      jumpRadius: b.jumpRadius,
+      falloff: b.falloff,
+      cooldownSec: Math.max(
+        b.minCooldownSec,
+        b.cooldownSec - levels.chainLightningCooldown * u.chainLightningCooldownPerLevel,
+      ),
     }
   },
 

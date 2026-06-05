@@ -34,3 +34,15 @@ export const FIRE_ELEMENTAL: SkillDefinition = {
 }
 
 export const FIRE_MAGE_SKILLS: SkillDefinition[] = [FIRE_WALL, FIRESTORM, FIRE_ELEMENTAL]
+
+export const CHAIN_LIGHTNING: SkillDefinition = {
+  id: 'chainLightning',
+  name: 'Chain Lightning',
+  emoji: '⚡',
+  mpCost: BALANCE.lightningMage.chainLightning.mpCost,
+  cooldownSec: BALANCE.lightningMage.chainLightning.cooldownSec,
+  targeting: 'none', // instant — auto-targets the closest enemy
+  effectKind: 'chainLightning',
+}
+
+export const LIGHTNING_MAGE_SKILLS: SkillDefinition[] = [CHAIN_LIGHTNING]

@@ -54,8 +54,8 @@ export interface SkillDefinition {
   emoji: string
   mpCost: number
   cooldownSec: number
-  targeting: 'pointX' | 'area' | 'none' // Fire Wall = pointX, others = area
-  effectKind: 'fireWall' | 'firestorm' | 'fireElemental'
+  targeting: 'pointX' | 'area' | 'none' // pointX/area = placement; none = instant
+  effectKind: 'fireWall' | 'firestorm' | 'fireElemental' | 'chainLightning'
 }
 
 export interface SkillRuntimeState {
@@ -78,6 +78,15 @@ export interface FirestormStats {
   tickInterval: number
   durationSec: number
   radius: number
+}
+
+// Resolved (per-cast) Chain Lightning parameters from upgrade levels.
+export interface ChainLightningStats {
+  damage: number
+  jumps: number // extra targets beyond the first
+  jumpRadius: number
+  falloff: number // damage multiplier applied per jump
+  cooldownSec: number
 }
 
 // Resolved (per-cast) Fire Elemental parameters from upgrade levels.
@@ -136,7 +145,7 @@ export interface CastleStats {
 }
 
 // Categories that group upgrade definitions and route their saved levels.
-export type UpgradeCategory = 'castle' | 'fireMage' | 'iceMage' | 'global'
+export type UpgradeCategory = 'castle' | 'fireMage' | 'iceMage' | 'lightningMage' | 'global'
 
 // Shared castle pool that is the defended target during a run.
 export interface CastleState {
@@ -249,12 +258,23 @@ export interface IceMageUpgradeLevels {
   mpRegen: number
 }
 
+export interface LightningMageUpgradeLevels {
+  lightningBoltDamage: number
+  lightningBoltCastSpeed: number
+  maxMp: number
+  mpRegen: number
+  chainLightningDamage: number
+  chainLightningJumps: number
+  chainLightningCooldown: number
+}
+
 export interface UpgradeState {
   castle: CastleUpgradeLevels
   global: GlobalUpgradeLevels
   defenders: {
     fireMage: FireMageUpgradeLevels
     iceMage: IceMageUpgradeLevels
+    lightningMage: LightningMageUpgradeLevels
   }
 }
 

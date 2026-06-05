@@ -80,6 +80,41 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Ice MP Regen', description: '+1 MP/sec per level', emoji: '🌀',
     costBase: 16, costMultiplier: 1.6, maxLevel: 30,
   },
+  lightningBoltDamage: {
+    id: 'lightningBoltDamage', category: 'lightningMage', field: 'lightningBoltDamage',
+    name: 'Lightning Dmg', description: '+15% Lightning Bolt damage per level', emoji: '⚡',
+    costBase: 10, costMultiplier: 1.6, maxLevel: 50,
+  },
+  lightningBoltCastSpeed: {
+    id: 'lightningBoltCastSpeed', category: 'lightningMage', field: 'lightningBoltCastSpeed',
+    name: 'Lightning Cast', description: '-8% cast interval per level', emoji: '⚡',
+    costBase: 12, costMultiplier: 1.65, maxLevel: 10,
+  },
+  lightningMageMaxMp: {
+    id: 'lightningMageMaxMp', category: 'lightningMage', field: 'maxMp',
+    name: 'Lightning MP', description: '+20 max MP per level', emoji: '🔷',
+    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
+  },
+  lightningMageMpRegen: {
+    id: 'lightningMageMpRegen', category: 'lightningMage', field: 'mpRegen',
+    name: 'Lightning Regen', description: '+1 MP/sec per level', emoji: '🌀',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
+  chainLightningDamage: {
+    id: 'chainLightningDamage', category: 'lightningMage', field: 'chainLightningDamage',
+    name: 'Chain Dmg', description: '+3 Chain Lightning damage per level', emoji: '⚡',
+    costBase: 18, costMultiplier: 1.6, maxLevel: 30,
+  },
+  chainLightningJumps: {
+    id: 'chainLightningJumps', category: 'lightningMage', field: 'chainLightningJumps',
+    name: 'Chain Jumps', description: '+1 chain jump per level', emoji: '🔗',
+    costBase: 40, costMultiplier: 2.0, maxLevel: 3,
+  },
+  chainLightningCooldown: {
+    id: 'chainLightningCooldown', category: 'lightningMage', field: 'chainLightningCooldown',
+    name: 'Chain Cooldown', description: '-1s Chain Lightning cooldown per level', emoji: '⌛',
+    costBase: 30, costMultiplier: 1.8, maxLevel: 4,
+  },
 }
 
 export interface UpgradeSection {
@@ -92,5 +127,6 @@ export const UPGRADE_SECTIONS: UpgradeSection[] = [
   { label: '🏰 Castle', upgradeIds: ['castleMaxHp', 'castleArmor', 'castleStartingShield', 'castleRegen', 'castleWaveRepair', 'castleSpikes'] },
   { label: '🧙 Fire Mage', upgradeIds: ['fireballDamage', 'fireballCastSpeed', 'fireMageMaxMp', 'fireMageMpRegen'] },
   { label: '🥶 Ice Mage', upgradeIds: ['iceShardDamage', 'iceShardCastSpeed', 'iceMageMaxMp', 'iceMageMpRegen'], requiresRecruit: 'iceMage' },
+  { label: '⚡ Lightning Mage', upgradeIds: ['lightningBoltDamage', 'lightningBoltCastSpeed', 'lightningMageMaxMp', 'lightningMageMpRegen', 'chainLightningDamage', 'chainLightningJumps', 'chainLightningCooldown'], requiresRecruit: 'lightningMage' },
   { label: '💧 Global', upgradeIds: ['blueManaGain'] },
 ]

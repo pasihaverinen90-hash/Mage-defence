@@ -48,6 +48,21 @@ export const BALANCE = {
     slowFactor: 0.6, // Ice Shard slows the target to 60% speed
     slowDurationSec: 1.5,
   },
+  lightningMage: {
+    baseDamage: 6, // lower than Fire Mage but faster
+    baseCastInterval: 1.0, // seconds (fast)
+    baseMaxMp: 90,
+    baseMpRegen: 5, // MP/sec
+    chainLightning: {
+      mpCost: 40,
+      cooldownSec: 6,
+      minCooldownSec: 2,
+      baseDamage: 14,
+      baseJumps: 2, // extra targets beyond the first (hits up to 3)
+      jumpRadius: 90,
+      falloff: 0.6, // each jump deals 60% of the previous hit
+    },
+  },
   upgrades: {
     // per-level additions / multipliers, keyed to upgrade definitions
     castleMaxHpPerLevel: 20,           // +20 max HP per level
@@ -73,6 +88,13 @@ export const BALANCE = {
     iceShardCastSpeedPerLevel: 0.08,   // -8% cast interval per level
     iceMageMaxMpPerLevel: 20,          // +20 max MP per level
     iceMageMpRegenPerLevel: 1,         // +1 MP/sec per level
+    lightningBoltDamagePerLevel: 0.15,    // +15% Lightning Bolt damage per level
+    lightningBoltCastSpeedPerLevel: 0.08, // -8% cast interval per level
+    lightningMageMaxMpPerLevel: 20,       // +20 max MP per level
+    lightningMageMpRegenPerLevel: 1,      // +1 MP/sec per level
+    chainLightningDamagePerLevel: 3,      // +3 Chain Lightning damage per level
+    chainLightningJumpsPerLevel: 1,       // +1 jump per level
+    chainLightningCooldownPerLevel: 1,    // -1s cooldown per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {
