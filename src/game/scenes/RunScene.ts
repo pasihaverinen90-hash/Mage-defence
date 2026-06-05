@@ -200,8 +200,10 @@ export class RunScene extends Phaser.Scene {
     }
 
     // Translucent placement preview for the currently-targeted skill.
+    // High depth so it draws above the arena floor/wall/enemies (all added
+    // later at the default depth, which would otherwise cover it).
     this.placementGhost = this.add.rectangle(0, LANE_Y, 46, 190, 0xf97316, 0.25)
-      .setStrokeStyle(1, 0xfb923c).setVisible(false)
+      .setStrokeStyle(1, 0xfb923c).setDepth(50).setVisible(false)
 
     // Arena floor (the battlefield)
     this.drawPanel(20, FLOOR_TOP, 760, FLOOR_BOTTOM - FLOOR_TOP, '#0c1320')
