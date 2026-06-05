@@ -13,4 +13,14 @@ export const FIRE_WALL: SkillDefinition = {
   effectKind: 'fireWall',
 }
 
-export const FIRE_MAGE_SKILLS: SkillDefinition[] = [FIRE_WALL]
+export const FIRESTORM: SkillDefinition = {
+  id: 'firestorm',
+  name: 'Firestorm',
+  emoji: '🌪️',
+  mpCost: BALANCE.fireMage.firestorm.mpCost,
+  cooldownSec: BALANCE.fireMage.firestorm.cooldownSec,
+  targeting: 'area',
+  effectKind: 'firestorm',
+}
+
+export const FIRE_MAGE_SKILLS: SkillDefinition[] = [FIRE_WALL, FIRESTORM]

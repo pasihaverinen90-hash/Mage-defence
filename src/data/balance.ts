@@ -21,6 +21,14 @@ export const BALANCE = {
       baseWidth: 46, // x-thickness of the burning zone
       height: 190, // covers the full enemy band
     },
+    firestorm: {
+      mpCost: 45,
+      cooldownSec: 9,
+      baseTickDamage: 6,
+      tickInterval: 0.5,
+      baseDurationSec: 5,
+      baseRadius: 70,
+    },
   },
   upgrades: {
     // per-level additions / multipliers, keyed to upgrade definitions
@@ -37,6 +45,9 @@ export const BALANCE = {
     fireWallDamagePerLevel: 2,         // +2 tick damage per level
     fireWallDurationPerLevel: 0.5,     // +0.5s duration per level
     fireWallSizePerLevel: 8,           // +8 width per level
+    firestormDamagePerLevel: 2,        // +2 tick damage per level
+    firestormDurationPerLevel: 0.5,    // +0.5s duration per level
+    firestormAreaPerLevel: 8,          // +8 radius per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {

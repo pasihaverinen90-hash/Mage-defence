@@ -2,6 +2,7 @@ import type {
   CastleStats,
   FireMageStats,
   FireWallStats,
+  FirestormStats,
   CastleUpgradeLevels,
   FireMageUpgradeLevels,
   UpgradeDefinition,
@@ -70,6 +71,17 @@ export const UpgradeSystem = {
       durationSec: b.baseDurationSec + levels.fireWallDuration * u.fireWallDurationPerLevel,
       width: b.baseWidth + levels.fireWallSize * u.fireWallSizePerLevel,
       height: b.height,
+    }
+  },
+
+  resolveFirestorm(levels: FireMageUpgradeLevels): FirestormStats {
+    const b = BALANCE.fireMage.firestorm
+    const u = BALANCE.upgrades
+    return {
+      tickDamage: b.baseTickDamage + levels.firestormDamage * u.firestormDamagePerLevel,
+      tickInterval: b.tickInterval,
+      durationSec: b.baseDurationSec + levels.firestormDuration * u.firestormDurationPerLevel,
+      radius: b.baseRadius + levels.firestormArea * u.firestormAreaPerLevel,
     }
   },
 

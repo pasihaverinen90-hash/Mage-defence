@@ -59,6 +59,8 @@ export class RunScene extends Phaser.Scene {
   private skillButtons: Map<string, Phaser.GameObjects.Text> = new Map()
   private placementSkill: SkillRuntimeState | null = null
   private placementGhost!: Phaser.GameObjects.Rectangle
+  private placementGhostCircle!: Phaser.GameObjects.Arc
+  private activeGhost: Phaser.GameObjects.Shape | null = null
 
   // UI refs
   private waveText!: Phaser.GameObjects.Text
@@ -98,6 +100,7 @@ export class RunScene extends Phaser.Scene {
     this.nextEffectId = 0
     this.skillButtons.clear()
     this.placementSkill = null
+    this.activeGhost = null
 
     const upgrades = gameState.upgrades
     const castleStats = UpgradeSystem.resolveCastle(upgrades.castle)
@@ -187,23 +190,25 @@ export class RunScene extends Phaser.Scene {
     endBtn.on('pointerover', () => endBtn.setAlpha(0.8))
     endBtn.on('pointerout', () => endBtn.setAlpha(1))
 
-    // Skill buttons (one per Fire Mage skill) in the controls strip.
-    let sx = 360
+    // Compact skill buttons (emoji + MP cost) in the controls strip.
+    let sx = 346
     for (const skill of this.run.defenders[0].skills) {
       const btn = this.add.text(sx, 70, '', {
         fontSize: '14px', color: '#fbbf24', fontFamily: 'monospace',
-        backgroundColor: '#2a1505', padding: { x: 10, y: 5 },
+        backgroundColor: '#2a1505', padding: { x: 8, y: 5 },
       }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
       btn.on('pointerdown', () => this.onSkillButton(skill))
       this.skillButtons.set(skill.definition.id, btn)
-      sx += 180
+      sx += 84
     }
 
-    // Translucent placement preview for the currently-targeted skill.
-    // High depth so it draws above the arena floor/wall/enemies (all added
-    // later at the default depth, which would otherwise cover it).
+    // Translucent placement previews (rect for Fire Wall, circle for Firestorm).
+    // High depth so they draw above the arena floor/wall/enemies (all added
+    // later at the default depth, which would otherwise cover them).
     this.placementGhost = this.add.rectangle(0, LANE_Y, 46, 190, 0xf97316, 0.25)
       .setStrokeStyle(1, 0xfb923c).setDepth(50).setVisible(false)
+    this.placementGhostCircle = this.add.circle(0, LANE_Y, 70, 0xf97316, 0.22)
+      .setStrokeStyle(2, 0xfb923c).setDepth(50).setVisible(false)
 
     // Arena floor (the battlefield)
     this.drawPanel(20, FLOOR_TOP, 760, FLOOR_BOTTOM - FLOOR_TOP, '#0c1320')
@@ -294,7 +299,10 @@ export class RunScene extends Phaser.Scene {
     this.input.mouse?.disableContextMenu()
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      if (this.placementSkill) this.placementGhost.x = this.clampPlacementX(p.x)
+      if (!this.placementSkill || !this.activeGhost) return
+      const x = this.clampPlacementX(p.x)
+      const y = this.isAreaSkill(this.placementSkill) ? this.clampPlacementY(p.y) : LANE_Y
+      this.activeGhost.setPosition(x, y)
     })
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -305,7 +313,7 @@ export class RunScene extends Phaser.Scene {
       }
       // Only a click on the battlefield places the skill (button strip is above).
       if (p.y >= FLOOR_TOP && p.y <= FLOOR_BOTTOM) {
-        this.placeSkill(this.placementSkill, this.clampPlacementX(p.x))
+        this.placeSkill(this.placementSkill, this.clampPlacementX(p.x), this.clampPlacementY(p.y))
       }
     })
 
@@ -314,6 +322,14 @@ export class RunScene extends Phaser.Scene {
 
   private clampPlacementX(x: number): number {
     return Phaser.Math.Clamp(x, 165, 745)
+  }
+
+  private clampPlacementY(y: number): number {
+    return Phaser.Math.Clamp(y, BALANCE.arena.laneTop + 30, BALANCE.arena.laneBottom - 10)
+  }
+
+  private isAreaSkill(skill: SkillRuntimeState): boolean {
+    return skill.definition.effectKind === 'firestorm'
   }
 
   private onSkillButton(skill: SkillRuntimeState) {
@@ -328,22 +344,35 @@ export class RunScene extends Phaser.Scene {
 
   private enterPlacement(skill: SkillRuntimeState) {
     this.placementSkill = skill
-    const fw = UpgradeSystem.resolveFireWall(gameState.upgrades.defenders.fireMage)
-    this.placementGhost.setSize(fw.width, fw.height)
-    this.placementGhost.x = this.clampPlacementX(this.input.activePointer.x)
-    this.placementGhost.setVisible(true)
+    const levels = gameState.upgrades.defenders.fireMage
+    const p = this.input.activePointer
+    if (this.isAreaSkill(skill)) {
+      const fs = UpgradeSystem.resolveFirestorm(levels)
+      this.placementGhostCircle.setRadius(fs.radius)
+      this.placementGhostCircle.setPosition(this.clampPlacementX(p.x), this.clampPlacementY(p.y))
+      this.placementGhostCircle.setVisible(true)
+      this.activeGhost = this.placementGhostCircle
+    } else {
+      const fw = UpgradeSystem.resolveFireWall(levels)
+      this.placementGhost.setSize(fw.width, fw.height)
+      this.placementGhost.setPosition(this.clampPlacementX(p.x), LANE_Y)
+      this.placementGhost.setVisible(true)
+      this.activeGhost = this.placementGhost
+    }
     this.updateSkillButtons()
-    this.log('🔥 Fire Wall — click the battlefield (Esc / right-click cancels)')
+    this.log(`${skill.definition.emoji} ${skill.definition.name} — click the battlefield (Esc / right-click cancels)`)
   }
 
   private cancelPlacement() {
     if (!this.placementSkill) return
     this.placementSkill = null
+    this.activeGhost = null
     this.placementGhost.setVisible(false)
+    this.placementGhostCircle.setVisible(false)
     this.updateSkillButtons()
   }
 
-  private placeSkill(skill: SkillRuntimeState, x: number) {
+  private placeSkill(skill: SkillRuntimeState, x: number, y: number) {
     const hero = this.run.defenders[0]
     const def = skill.definition
     if (skill.cooldownTimer > 0 || hero.mp < def.mpCost) {
@@ -352,11 +381,12 @@ export class RunScene extends Phaser.Scene {
     }
     hero.mp -= def.mpCost
     skill.cooldownTimer = def.cooldownSec
-    this.spawnFireWall(x)
+    if (def.effectKind === 'firestorm') this.spawnFirestorm(x, y)
+    else this.spawnFireWall(x)
     this.cancelPlacement()
     this.updateDefenderUI()
     this.updateSkillButtons()
-    this.log(`🔥 Fire Wall placed (-${def.mpCost} MP)`)
+    this.log(`${def.emoji} ${def.name} placed (-${def.mpCost} MP)`)
   }
 
   private updateSkillButtons() {
@@ -369,13 +399,13 @@ export class RunScene extends Phaser.Scene {
         btn.setText(`${def.emoji} ${skill.cooldownTimer.toFixed(1)}s`)
         btn.setColor('#6b7280')
       } else if (hero.mp < def.mpCost) {
-        btn.setText(`${def.emoji} ${def.name} (${def.mpCost})`)
+        btn.setText(`${def.emoji} ${def.mpCost}`)
         btn.setColor('#6b7280')
       } else if (this.placementSkill === skill) {
-        btn.setText(`${def.emoji} place…`)
+        btn.setText(`${def.emoji} ${def.mpCost}`)
         btn.setColor('#fde68a')
       } else {
-        btn.setText(`${def.emoji} ${def.name} (${def.mpCost})`)
+        btn.setText(`${def.emoji} ${def.mpCost}`)
         btn.setColor('#fbbf24')
       }
     }
@@ -629,32 +659,52 @@ export class RunScene extends Phaser.Scene {
     this.projectiles = []
   }
 
-  // ── Field effects (Fire Wall) ────────────────────────────
+  // ── Field effects (Fire Wall rect / Firestorm circle) ────
   private spawnFireWall(x: number) {
     const fw = UpgradeSystem.resolveFireWall(gameState.upgrades.defenders.fireMage)
-    const effect: FieldEffect = {
+    this.addFieldEffect({
       id: `fx${this.nextEffectId++}`,
-      kind: 'fireWall',
-      x,
-      y: LANE_Y,
-      width: fw.width,
-      height: fw.height,
-      tickDamage: fw.tickDamage,
-      tickInterval: fw.tickInterval,
-      tickTimer: fw.tickInterval,
-      remainingSec: fw.durationSec,
-    }
+      kind: 'fireWall', shape: 'rect',
+      x, y: LANE_Y,
+      width: fw.width, height: fw.height, radius: 0,
+      tickDamage: fw.tickDamage, tickInterval: fw.tickInterval,
+      tickTimer: fw.tickInterval, remainingSec: fw.durationSec,
+    })
+  }
+
+  private spawnFirestorm(x: number, y: number) {
+    const fs = UpgradeSystem.resolveFirestorm(gameState.upgrades.defenders.fireMage)
+    this.addFieldEffect({
+      id: `fx${this.nextEffectId++}`,
+      kind: 'firestorm', shape: 'circle',
+      x, y,
+      width: 0, height: 0, radius: fs.radius,
+      tickDamage: fs.tickDamage, tickInterval: fs.tickInterval,
+      tickTimer: fs.tickInterval, remainingSec: fs.durationSec,
+    })
+  }
+
+  private addFieldEffect(effect: FieldEffect) {
     this.fieldEffects.push(effect)
 
-    const rect = this.add.rectangle(0, 0, effect.width, effect.height, 0xf97316, 0.35)
-      .setStrokeStyle(1, 0xfb923c)
-    const flame = this.add.text(0, -effect.height / 2 + 2, '🔥', { fontSize: '20px' }).setOrigin(0.5)
-    const container = this.add.container(effect.x, effect.y, [rect, flame])
+    let zone: Phaser.GameObjects.Shape
+    let label: Phaser.GameObjects.Text
+    if (effect.shape === 'circle') {
+      zone = this.add.circle(0, 0, effect.radius, 0xf97316, 0.3).setStrokeStyle(2, 0xfb923c)
+      label = this.add.text(0, 0, '🌪️', { fontSize: '24px' }).setOrigin(0.5)
+    } else {
+      zone = this.add.rectangle(0, 0, effect.width, effect.height, 0xf97316, 0.35).setStrokeStyle(1, 0xfb923c)
+      label = this.add.text(0, -effect.height / 2 + 2, '🔥', { fontSize: '20px' }).setOrigin(0.5)
+    }
+    const container = this.add.container(effect.x, effect.y, [zone, label])
     this.effectViews.set(effect.id, container)
     this.tweens.add({
-      targets: rect, alpha: { from: 0.22, to: 0.42 },
+      targets: zone, alpha: { from: 0.2, to: 0.42 },
       duration: 380, yoyo: true, repeat: -1,
     })
+    if (effect.shape === 'circle') {
+      this.tweens.add({ targets: label, angle: 360, duration: 1600, repeat: -1, ease: 'Linear' })
+    }
   }
 
   private updateFieldEffects(dt: number) {
@@ -666,7 +716,7 @@ export class RunScene extends Phaser.Scene {
       fx.tickTimer -= dt
       if (fx.tickTimer <= 0) {
         fx.tickTimer = fx.tickInterval
-        this.applyFireWallTick(fx)
+        this.applyFieldEffectTick(fx)
       }
       if (fx.remainingSec <= 0) {
         this.destroyEffectView(fx.id)
@@ -678,27 +728,36 @@ export class RunScene extends Phaser.Scene {
   }
 
   // Damage every enemy currently inside the zone (never the castle/defenders).
-  private applyFireWallTick(fx: FieldEffect) {
-    const halfW = fx.width / 2
-    const top = fx.y - fx.height / 2
-    const bottom = fx.y + fx.height / 2
+  private applyFieldEffectTick(fx: FieldEffect) {
     let hits = 0
     for (const enemy of [...this.activeEnemies]) {
-      if (
-        enemy.x >= fx.x - halfW && enemy.x <= fx.x + halfW &&
-        enemy.y >= top && enemy.y <= bottom
-      ) {
-        enemy.hp = Math.max(0, enemy.hp - fx.tickDamage)
-        hits++
-        if (enemy.hp <= 0) {
-          this.killEnemy(enemy)
-        } else {
-          this.updateEnemyView(enemy)
-          this.popEnemy(enemy)
-        }
+      if (!this.enemyInEffect(enemy, fx)) continue
+      enemy.hp = Math.max(0, enemy.hp - fx.tickDamage)
+      hits++
+      if (enemy.hp <= 0) {
+        this.killEnemy(enemy)
+      } else {
+        this.updateEnemyView(enemy)
+        this.popEnemy(enemy)
       }
     }
-    if (hits > 0) this.log(`🔥 Fire Wall burns ${hits} for ${fx.tickDamage}`)
+    if (hits > 0) {
+      const label = fx.kind === 'firestorm' ? '🌪️ Firestorm' : '🔥 Fire Wall'
+      this.log(`${label} burns ${hits} for ${fx.tickDamage}`)
+    }
+  }
+
+  private enemyInEffect(enemy: RunEnemy, fx: FieldEffect): boolean {
+    if (fx.shape === 'circle') {
+      const dx = enemy.x - fx.x
+      const dy = enemy.y - fx.y
+      return dx * dx + dy * dy <= fx.radius * fx.radius
+    }
+    const halfW = fx.width / 2
+    return (
+      enemy.x >= fx.x - halfW && enemy.x <= fx.x + halfW &&
+      enemy.y >= fx.y - fx.height / 2 && enemy.y <= fx.y + fx.height / 2
+    )
   }
 
   private destroyEffectView(id: string) {

@@ -48,8 +48,8 @@ export interface SkillDefinition {
   emoji: string
   mpCost: number
   cooldownSec: number
-  targeting: 'pointX' | 'area' | 'none' // Fire Wall = pointX
-  effectKind: 'fireWall'
+  targeting: 'pointX' | 'area' | 'none' // Fire Wall = pointX, Firestorm = area
+  effectKind: 'fireWall' | 'firestorm'
 }
 
 export interface SkillRuntimeState {
@@ -66,16 +66,26 @@ export interface FireWallStats {
   height: number
 }
 
-// A timed area-of-effect zone on the battlefield (Fire Wall now; Firestorm/
-// Elemental later). Damages enemies inside on a tick; never touches the castle
-// or defenders.
+// Resolved (per-cast) Firestorm parameters from upgrade levels.
+export interface FirestormStats {
+  tickDamage: number
+  tickInterval: number
+  durationSec: number
+  radius: number
+}
+
+// A timed area-of-effect zone on the battlefield (Fire Wall rect, Firestorm
+// circle; Elemental later). Damages enemies inside on a tick; never touches the
+// castle or defenders.
 export interface FieldEffect {
   id: string
-  kind: 'fireWall'
+  kind: 'fireWall' | 'firestorm'
+  shape: 'rect' | 'circle'
   x: number
   y: number
-  width: number
-  height: number
+  width: number // rect
+  height: number // rect
+  radius: number // circle
   tickDamage: number
   tickInterval: number
   tickTimer: number
