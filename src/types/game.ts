@@ -48,8 +48,8 @@ export interface SkillDefinition {
   emoji: string
   mpCost: number
   cooldownSec: number
-  targeting: 'pointX' | 'area' | 'none' // Fire Wall = pointX, Firestorm = area
-  effectKind: 'fireWall' | 'firestorm'
+  targeting: 'pointX' | 'area' | 'none' // Fire Wall = pointX, others = area
+  effectKind: 'fireWall' | 'firestorm' | 'fireElemental'
 }
 
 export interface SkillRuntimeState {
@@ -72,6 +72,33 @@ export interface FirestormStats {
   tickInterval: number
   durationSec: number
   radius: number
+}
+
+// Resolved (per-cast) Fire Elemental parameters from upgrade levels.
+export interface FireElementalStats {
+  hp: number
+  durationSec: number
+  aoeDamage: number
+  aoeRadius: number
+  tauntRadius: number
+  aoeInterval: number
+}
+
+// A summoned tanking entity that taunts nearby enemies (they attack it instead
+// of the castle) and Fire-Bashes enemies around itself. Dies on 0 HP or timeout.
+export interface Summon {
+  id: string
+  kind: 'fireElemental'
+  x: number
+  y: number
+  hp: number
+  maxHp: number
+  tauntRadius: number
+  aoeRadius: number
+  aoeDamage: number
+  aoeInterval: number
+  aoeTimer: number
+  remainingSec: number
 }
 
 // A timed area-of-effect zone on the battlefield (Fire Wall rect, Firestorm

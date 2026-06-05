@@ -9,7 +9,7 @@ import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
 import { FIRE_MAGE_SKILLS } from '../../data/skills'
 import type {
   CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState,
-  Projectile, SkillRuntimeState, FieldEffect,
+  Projectile, SkillRuntimeState, FieldEffect, Summon,
 } from '../../types/game'
 
 const W = 800
@@ -45,6 +45,13 @@ interface EnemyView {
   barWidth: number
 }
 
+// Visual representation of a summon (Fire Elemental).
+interface SummonView {
+  container: Phaser.GameObjects.Container
+  hpFill: Phaser.GameObjects.Rectangle
+  barWidth: number
+}
+
 export class RunScene extends Phaser.Scene {
   private run!: RunState
   private activeEnemies: RunEnemy[] = []
@@ -56,6 +63,9 @@ export class RunScene extends Phaser.Scene {
   private fieldEffects: FieldEffect[] = []
   private effectViews: Map<string, Phaser.GameObjects.Container> = new Map()
   private nextEffectId = 0
+  private summons: Summon[] = []
+  private summonViews: Map<string, SummonView> = new Map()
+  private nextSummonId = 0
   private skillButtons: Map<string, Phaser.GameObjects.Text> = new Map()
   private placementSkill: SkillRuntimeState | null = null
   private placementGhost!: Phaser.GameObjects.Rectangle
@@ -98,6 +108,9 @@ export class RunScene extends Phaser.Scene {
     this.fieldEffects = []
     this.effectViews.clear()
     this.nextEffectId = 0
+    this.summons = []
+    this.summonViews.clear()
+    this.nextSummonId = 0
     this.skillButtons.clear()
     this.placementSkill = null
     this.activeGhost = null
@@ -170,7 +183,7 @@ export class RunScene extends Phaser.Scene {
     this.killText = this.add.text(20, 62, '', {
       fontSize: '14px', color: '#9ca3af', fontFamily: 'monospace',
     })
-    this.bestText = this.add.text(200, 62, '', {
+    this.bestText = this.add.text(120, 62, '', {
       fontSize: '14px', color: '#6b7280', fontFamily: 'monospace',
     })
 
@@ -191,7 +204,7 @@ export class RunScene extends Phaser.Scene {
     endBtn.on('pointerout', () => endBtn.setAlpha(1))
 
     // Compact skill buttons (emoji + MP cost) in the controls strip.
-    let sx = 346
+    let sx = 264
     for (const skill of this.run.defenders[0].skills) {
       const btn = this.add.text(sx, 70, '', {
         fontSize: '14px', color: '#fbbf24', fontFamily: 'monospace',
@@ -329,7 +342,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private isAreaSkill(skill: SkillRuntimeState): boolean {
-    return skill.definition.effectKind === 'firestorm'
+    return skill.definition.effectKind !== 'fireWall' // firestorm + fire elemental take an x+y point
   }
 
   private onSkillButton(skill: SkillRuntimeState) {
@@ -346,18 +359,21 @@ export class RunScene extends Phaser.Scene {
     this.placementSkill = skill
     const levels = gameState.upgrades.defenders.fireMage
     const p = this.input.activePointer
-    if (this.isAreaSkill(skill)) {
-      const fs = UpgradeSystem.resolveFirestorm(levels)
-      this.placementGhostCircle.setRadius(fs.radius)
-      this.placementGhostCircle.setPosition(this.clampPlacementX(p.x), this.clampPlacementY(p.y))
-      this.placementGhostCircle.setVisible(true)
-      this.activeGhost = this.placementGhostCircle
-    } else {
+    const kind = skill.definition.effectKind
+    if (kind === 'fireWall') {
       const fw = UpgradeSystem.resolveFireWall(levels)
       this.placementGhost.setSize(fw.width, fw.height)
       this.placementGhost.setPosition(this.clampPlacementX(p.x), LANE_Y)
       this.placementGhost.setVisible(true)
       this.activeGhost = this.placementGhost
+    } else {
+      const radius = kind === 'fireElemental'
+        ? UpgradeSystem.resolveFireElemental(levels).tauntRadius
+        : UpgradeSystem.resolveFirestorm(levels).radius
+      this.placementGhostCircle.setRadius(radius)
+      this.placementGhostCircle.setPosition(this.clampPlacementX(p.x), this.clampPlacementY(p.y))
+      this.placementGhostCircle.setVisible(true)
+      this.activeGhost = this.placementGhostCircle
     }
     this.updateSkillButtons()
     this.log(`${skill.definition.emoji} ${skill.definition.name} — click the battlefield (Esc / right-click cancels)`)
@@ -381,7 +397,8 @@ export class RunScene extends Phaser.Scene {
     }
     hero.mp -= def.mpCost
     skill.cooldownTimer = def.cooldownSec
-    if (def.effectKind === 'firestorm') this.spawnFirestorm(x, y)
+    if (def.effectKind === 'fireElemental') this.spawnFireElemental(x, y)
+    else if (def.effectKind === 'firestorm') this.spawnFirestorm(x, y)
     else this.spawnFireWall(x)
     this.cancelPlacement()
     this.updateDefenderUI()
@@ -461,6 +478,7 @@ export class RunScene extends Phaser.Scene {
     this.updateRegen(dt)
     this.updateSpikes(dt)
     this.updateFieldEffects(dt)
+    this.updateSummons(dt)
     this.updateDefenders(dt)
     this.updateEnemies(dt)
     this.updateProjectiles(dt)
@@ -556,6 +574,13 @@ export class RunScene extends Phaser.Scene {
 
   private updateEnemies(dt: number) {
     for (const enemy of this.activeEnemies) {
+      // Taunt: a Fire Elemental in range pulls the enemy off the castle.
+      const taunt = this.tauntTargetFor(enemy)
+      if (taunt) {
+        this.updateTauntedEnemy(enemy, taunt, dt)
+        continue
+      }
+
       if (!enemy.attacking) {
         enemy.x -= enemy.speed * dt
         if (enemy.x <= enemy.stopX) {
@@ -579,6 +604,136 @@ export class RunScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  // Nearest living summon whose taunt radius contains the enemy (or null).
+  private tauntTargetFor(enemy: RunEnemy): Summon | null {
+    let best: Summon | null = null
+    let bestDist = Infinity
+    for (const s of this.summons) {
+      const dx = s.x - enemy.x
+      const dy = s.y - enemy.y
+      const d = dx * dx + dy * dy
+      if (d <= s.tauntRadius * s.tauntRadius && d < bestDist) {
+        best = s
+        bestDist = d
+      }
+    }
+    return best
+  }
+
+  // Taunted enemies leave the wall, move onto the elemental, and attack it.
+  private updateTauntedEnemy(enemy: RunEnemy, summon: Summon, dt: number) {
+    enemy.attacking = false // no longer holding at the castle wall
+    const dx = summon.x - enemy.x
+    const dy = summon.y - enemy.y
+    const dist = Math.hypot(dx, dy) || 1
+    const attackRange = 44
+    if (dist > attackRange) {
+      const step = enemy.speed * dt
+      enemy.x += (dx / dist) * step
+      enemy.y += (dy / dist) * step
+      this.syncEnemyView(enemy)
+      return
+    }
+    enemy.attackTimer -= dt
+    if (enemy.attackTimer <= 0) {
+      enemy.attackTimer = enemy.attackInterval
+      summon.hp = Math.max(0, summon.hp - enemy.damage)
+      this.updateSummonView(summon)
+    }
+  }
+
+  private syncEnemyView(enemy: RunEnemy) {
+    const view = this.views.get(enemy.id)
+    if (view) view.container.setPosition(enemy.x, enemy.y)
+  }
+
+  // ── Summons (Fire Elemental) ─────────────────────────────
+  private spawnFireElemental(x: number, y: number) {
+    const fe = UpgradeSystem.resolveFireElemental(gameState.upgrades.defenders.fireMage)
+    const summon: Summon = {
+      id: `s${this.nextSummonId++}`,
+      kind: 'fireElemental',
+      x, y,
+      hp: fe.hp, maxHp: fe.hp,
+      tauntRadius: fe.tauntRadius,
+      aoeRadius: fe.aoeRadius,
+      aoeDamage: fe.aoeDamage,
+      aoeInterval: fe.aoeInterval,
+      aoeTimer: fe.aoeInterval,
+      remainingSec: fe.durationSec,
+    }
+    this.summons.push(summon)
+
+    const aoeRing = this.add.circle(0, 0, summon.aoeRadius, 0xf97316, 0.08).setStrokeStyle(1, 0x7c2d12)
+    const body = this.add.circle(0, 0, 22, 0xea580c, 0.9).setStrokeStyle(2, 0xfdba74)
+    const emoji = this.add.text(0, 0, '🌋', { fontSize: '26px' }).setOrigin(0.5)
+    const barBg = this.add.rectangle(0, -34, 44, 6, 0x374151).setOrigin(0.5)
+    const barFill = this.add.rectangle(-22, -34, 44, 6, 0x22c55e).setOrigin(0, 0.5)
+    const container = this.add.container(summon.x, summon.y, [aoeRing, body, emoji, barBg, barFill])
+    this.summonViews.set(summon.id, { container, hpFill: barFill, barWidth: 44 })
+  }
+
+  private updateSummons(dt: number) {
+    if (this.summons.length === 0) return
+
+    const survivors: Summon[] = []
+    for (const s of this.summons) {
+      s.remainingSec -= dt
+      s.aoeTimer -= dt
+      if (s.aoeTimer <= 0) {
+        s.aoeTimer = s.aoeInterval
+        this.applyFireBash(s)
+      }
+      if (s.hp <= 0 || s.remainingSec <= 0) {
+        this.destroySummonView(s.id)
+      } else {
+        survivors.push(s)
+      }
+    }
+    this.summons = survivors
+  }
+
+  // Fire Bash: AoE damage to every enemy around the elemental.
+  private applyFireBash(summon: Summon) {
+    let hits = 0
+    for (const enemy of [...this.activeEnemies]) {
+      const dx = enemy.x - summon.x
+      const dy = enemy.y - summon.y
+      if (dx * dx + dy * dy <= summon.aoeRadius * summon.aoeRadius) {
+        enemy.hp = Math.max(0, enemy.hp - summon.aoeDamage)
+        hits++
+        if (enemy.hp <= 0) {
+          this.killEnemy(enemy)
+        } else {
+          this.updateEnemyView(enemy)
+          this.popEnemy(enemy)
+        }
+      }
+    }
+    if (hits > 0) this.log(`🌋 Fire Bash hits ${hits} for ${summon.aoeDamage}`)
+  }
+
+  private updateSummonView(summon: Summon) {
+    const view = this.summonViews.get(summon.id)
+    if (!view) return
+    const pct = summon.maxHp > 0 ? Math.max(0, summon.hp / summon.maxHp) : 0
+    view.hpFill.width = view.barWidth * pct
+  }
+
+  private destroySummonView(id: string) {
+    const view = this.summonViews.get(id)
+    if (view) {
+      view.container.destroy()
+      this.summonViews.delete(id)
+    }
+  }
+
+  private clearSummons() {
+    for (const view of this.summonViews.values()) view.container.destroy()
+    this.summonViews.clear()
+    this.summons = []
   }
 
   // Centralised castle-hit handling shared by melee strikes and projectile
@@ -898,6 +1053,7 @@ export class RunScene extends Phaser.Scene {
     this.cancelPlacement()
     this.clearProjectiles()
     this.clearFieldEffects()
+    this.clearSummons()
 
     const reward = RewardSystem.calculateBlueMana(
       this.run.highestWaveThisRun,

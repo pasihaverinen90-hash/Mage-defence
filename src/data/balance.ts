@@ -29,6 +29,16 @@ export const BALANCE = {
       baseDurationSec: 5,
       baseRadius: 70,
     },
+    fireElemental: {
+      mpCost: 60,
+      cooldownSec: 14,
+      baseHp: 120,
+      baseDurationSec: 10,
+      baseAoeDamage: 10,
+      aoeInterval: 1.0, // Fire Bash every second
+      tauntRadius: 95, // enemies within this distance target the elemental
+      aoeRadius: 75, // Fire Bash reach
+    },
   },
   upgrades: {
     // per-level additions / multipliers, keyed to upgrade definitions
@@ -48,6 +58,9 @@ export const BALANCE = {
     firestormDamagePerLevel: 2,        // +2 tick damage per level
     firestormDurationPerLevel: 0.5,    // +0.5s duration per level
     firestormAreaPerLevel: 8,          // +8 radius per level
+    fireElementalPowerPerLevel: 3,     // +3 Fire Bash damage per level
+    fireElementalDurationPerLevel: 1,  // +1s duration per level
+    fireElementalHealthPerLevel: 30,   // +30 HP per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {

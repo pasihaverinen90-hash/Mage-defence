@@ -3,6 +3,7 @@ import type {
   FireMageStats,
   FireWallStats,
   FirestormStats,
+  FireElementalStats,
   CastleUpgradeLevels,
   FireMageUpgradeLevels,
   UpgradeDefinition,
@@ -82,6 +83,19 @@ export const UpgradeSystem = {
       tickInterval: b.tickInterval,
       durationSec: b.baseDurationSec + levels.firestormDuration * u.firestormDurationPerLevel,
       radius: b.baseRadius + levels.firestormArea * u.firestormAreaPerLevel,
+    }
+  },
+
+  resolveFireElemental(levels: FireMageUpgradeLevels): FireElementalStats {
+    const b = BALANCE.fireMage.fireElemental
+    const u = BALANCE.upgrades
+    return {
+      hp: b.baseHp + levels.fireElementalHealth * u.fireElementalHealthPerLevel,
+      durationSec: b.baseDurationSec + levels.fireElementalDuration * u.fireElementalDurationPerLevel,
+      aoeDamage: b.baseAoeDamage + levels.fireElementalPower * u.fireElementalPowerPerLevel,
+      aoeRadius: b.aoeRadius,
+      tauntRadius: b.tauntRadius,
+      aoeInterval: b.aoeInterval,
     }
   },
 
