@@ -29,6 +29,12 @@ export function defaultSave(): SaveData {
           fireElementalDuration: 0,
           fireElementalHealth: 0,
         },
+        iceMage: {
+          iceShardDamage: 0,
+          iceShardCastSpeed: 0,
+          maxMp: 0,
+          mpRegen: 0,
+        },
       },
     },
     ownedRecruits: [],

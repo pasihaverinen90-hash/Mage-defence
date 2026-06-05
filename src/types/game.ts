@@ -1,10 +1,13 @@
-// Resolved (per-run) combat stats for the Fire Mage hero.
-export interface FireMageStats {
+// Resolved (per-run) basic-combat stats shared by any defender (hero/recruit).
+export interface DefenderBasicStats {
   damage: number
   castInterval: number // seconds between attacks
   maxMp: number
   mpRegen: number // MP per second
 }
+
+// Fire Mage uses the shared shape (kept as an alias for readability).
+export type FireMageStats = DefenderBasicStats
 
 // ── Defenders (the hero + future recruits on the castle wall) ──
 export type DefenderSlotId = 'towerNorth' | 'hero' | 'towerSouth'
@@ -18,12 +21,15 @@ export interface DefenderSlot {
   unlocked: boolean // hero is always unlocked; towers are future recruit slots
 }
 
-// Static identity of a defender character (the Fire Mage hero, later recruits).
+// Static identity of a defender character (the Fire Mage hero or a recruit).
 export interface DefenderDefinition {
   id: string
   name: string
   emoji: string
   basicAttackName: string
+  basicAttackEmoji: string // projectile/visual for the basic attack
+  slowFactor?: number // basic attack slows the target to this speed fraction
+  slowDurationSec?: number // for this long (data-driven; restores cleanly)
 }
 
 // Per-run live state for one defender occupying a slot.
@@ -130,7 +136,7 @@ export interface CastleStats {
 }
 
 // Categories that group upgrade definitions and route their saved levels.
-export type UpgradeCategory = 'castle' | 'fireMage' | 'global'
+export type UpgradeCategory = 'castle' | 'fireMage' | 'iceMage' | 'global'
 
 // Shared castle pool that is the defended target during a run.
 export interface CastleState {
@@ -172,7 +178,9 @@ export interface RunEnemy {
   attackTimer: number
   x: number
   y: number
-  speed: number
+  speed: number // current speed (may be reduced while slowed)
+  baseSpeed: number // original speed, restored when a slow expires
+  slowTimer: number // seconds of slow remaining; 0 = not slowed
   stopX: number // x position where this enemy stops to attack
   attacking: boolean // reached its stop position and is attacking the castle
 }
@@ -234,11 +242,19 @@ export interface FireMageUpgradeLevels {
   fireElementalHealth: number
 }
 
+export interface IceMageUpgradeLevels {
+  iceShardDamage: number
+  iceShardCastSpeed: number
+  maxMp: number
+  mpRegen: number
+}
+
 export interface UpgradeState {
   castle: CastleUpgradeLevels
   global: GlobalUpgradeLevels
   defenders: {
     fireMage: FireMageUpgradeLevels
+    iceMage: IceMageUpgradeLevels
   }
 }
 

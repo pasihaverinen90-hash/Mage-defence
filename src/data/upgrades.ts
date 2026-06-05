@@ -60,15 +60,37 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Blue Mana Gain', description: '+15% mana reward per level', emoji: '💧',
     costBase: 20, costMultiplier: 1.8, maxLevel: 20,
   },
+  iceShardDamage: {
+    id: 'iceShardDamage', category: 'iceMage', field: 'iceShardDamage',
+    name: 'Ice Shard Damage', description: '+15% Ice Shard damage per level', emoji: '❄️',
+    costBase: 10, costMultiplier: 1.6, maxLevel: 50,
+  },
+  iceShardCastSpeed: {
+    id: 'iceShardCastSpeed', category: 'iceMage', field: 'iceShardCastSpeed',
+    name: 'Ice Cast Speed', description: '-8% cast interval per level', emoji: '⚡',
+    costBase: 12, costMultiplier: 1.65, maxLevel: 10,
+  },
+  iceMageMaxMp: {
+    id: 'iceMageMaxMp', category: 'iceMage', field: 'maxMp',
+    name: 'Ice Max MP', description: '+20 max MP per level', emoji: '🔷',
+    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
+  },
+  iceMageMpRegen: {
+    id: 'iceMageMpRegen', category: 'iceMage', field: 'mpRegen',
+    name: 'Ice MP Regen', description: '+1 MP/sec per level', emoji: '🌀',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
 }
 
 export interface UpgradeSection {
   label: string
   upgradeIds: string[]
+  requiresRecruit?: string // only shown once this recruit is owned
 }
 
 export const UPGRADE_SECTIONS: UpgradeSection[] = [
   { label: '🏰 Castle', upgradeIds: ['castleMaxHp', 'castleArmor', 'castleStartingShield', 'castleRegen', 'castleWaveRepair', 'castleSpikes'] },
   { label: '🧙 Fire Mage', upgradeIds: ['fireballDamage', 'fireballCastSpeed', 'fireMageMaxMp', 'fireMageMpRegen'] },
+  { label: '🥶 Ice Mage', upgradeIds: ['iceShardDamage', 'iceShardCastSpeed', 'iceMageMaxMp', 'iceMageMpRegen'], requiresRecruit: 'iceMage' },
   { label: '💧 Global', upgradeIds: ['blueManaGain'] },
 ]

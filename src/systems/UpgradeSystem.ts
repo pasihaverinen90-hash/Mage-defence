@@ -1,11 +1,13 @@
 import type {
   CastleStats,
   FireMageStats,
+  DefenderBasicStats,
   FireWallStats,
   FirestormStats,
   FireElementalStats,
   CastleUpgradeLevels,
   FireMageUpgradeLevels,
+  IceMageUpgradeLevels,
   UpgradeDefinition,
 } from '../types/game'
 import { BALANCE } from '../data/balance'
@@ -57,6 +59,19 @@ export const UpgradeSystem = {
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
       maxMp: b.baseMaxMp + levels.maxMp * u.fireMageMaxMpPerLevel,
       mpRegen: b.baseMpRegen + levels.mpRegen * u.fireMageMpRegenPerLevel,
+    }
+  },
+
+  resolveIceMage(levels: IceMageUpgradeLevels): DefenderBasicStats {
+    const b = BALANCE.iceMage
+    const u = BALANCE.upgrades
+    const damageMult = 1 + levels.iceShardDamage * u.iceShardDamagePerLevel
+    const intervalMult = Math.max(0.3, 1 - levels.iceShardCastSpeed * u.iceShardCastSpeedPerLevel)
+    return {
+      damage: Math.floor(b.baseDamage * damageMult),
+      castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
+      maxMp: b.baseMaxMp + levels.maxMp * u.iceMageMaxMpPerLevel,
+      mpRegen: b.baseMpRegen + levels.mpRegen * u.iceMageMpRegenPerLevel,
     }
   },
 

@@ -40,6 +40,14 @@ export const BALANCE = {
       aoeRadius: 75, // Fire Bash reach
     },
   },
+  iceMage: {
+    baseDamage: 8,
+    baseCastInterval: 1.7, // seconds
+    baseMaxMp: 80,
+    baseMpRegen: 4, // MP/sec
+    slowFactor: 0.6, // Ice Shard slows the target to 60% speed
+    slowDurationSec: 1.5,
+  },
   upgrades: {
     // per-level additions / multipliers, keyed to upgrade definitions
     castleMaxHpPerLevel: 20,           // +20 max HP per level
@@ -61,6 +69,10 @@ export const BALANCE = {
     fireElementalPowerPerLevel: 3,     // +3 Fire Bash damage per level
     fireElementalDurationPerLevel: 1,  // +1s duration per level
     fireElementalHealthPerLevel: 30,   // +30 HP per level
+    iceShardDamagePerLevel: 0.15,      // +15% Ice Shard damage per level
+    iceShardCastSpeedPerLevel: 0.08,   // -8% cast interval per level
+    iceMageMaxMpPerLevel: 20,          // +20 max MP per level
+    iceMageMpRegenPerLevel: 1,         // +1 MP/sec per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {

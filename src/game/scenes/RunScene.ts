@@ -7,9 +7,11 @@ import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
 import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
 import { FIRE_MAGE_SKILLS } from '../../data/skills'
+import { RECRUITS } from '../../data/recruits'
 import type {
-  CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState,
-  Projectile, SkillRuntimeState, FieldEffect, Summon,
+  CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState, DefenderDefinition,
+  DefenderSlotId, DefenderBasicStats, Projectile, SkillRuntimeState, SkillDefinition,
+  FieldEffect, Summon, UpgradeState,
 } from '../../types/game'
 
 const W = 800
@@ -76,7 +78,7 @@ export class RunScene extends Phaser.Scene {
   private waveText!: Phaser.GameObjects.Text
   private killText!: Phaser.GameObjects.Text
   private bestText!: Phaser.GameObjects.Text
-  private mageSprite!: Phaser.GameObjects.Text
+  private defenderSprites: Map<DefenderSlotId, Phaser.GameObjects.Text> = new Map()
   private castleWall!: Phaser.GameObjects.Rectangle
   private castleHpFill!: Phaser.GameObjects.Rectangle
   private castleShieldFill!: Phaser.GameObjects.Rectangle
@@ -114,27 +116,10 @@ export class RunScene extends Phaser.Scene {
     this.skillButtons.clear()
     this.placementSkill = null
     this.activeGhost = null
+    this.defenderSprites.clear()
 
     const upgrades = gameState.upgrades
     const castleStats = UpgradeSystem.resolveCastle(upgrades.castle)
-    const mageStats = UpgradeSystem.resolveFireMage(upgrades.defenders.fireMage)
-
-    // The Fire Mage hero occupies the centre (gate) slot. Tower slots stay
-    // empty for now — recruits arrive in a later slice.
-    const heroSlot = DEFENDER_SLOTS.hero
-    const hero: DefenderRuntimeState = {
-      slotId: heroSlot.id,
-      definition: FIRE_MAGE,
-      x: heroSlot.x,
-      y: heroSlot.y,
-      basicDamage: mageStats.damage,
-      basicInterval: mageStats.castInterval,
-      attackTimer: mageStats.castInterval,
-      mp: 0, // defined starting value — regenerates toward maxMp during the run
-      maxMp: mageStats.maxMp,
-      mpRegen: mageStats.mpRegen,
-      skills: FIRE_MAGE_SKILLS.map((def) => ({ definition: def, cooldownTimer: 0 })),
-    }
 
     this.run = {
       // Castle HP/armor/shield all reset to full from resolved upgrade stats.
@@ -148,7 +133,7 @@ export class RunScene extends Phaser.Scene {
         waveRepair: castleStats.waveRepair,
         spikeDamage: castleStats.spikeDamage,
       },
-      defenders: [hero],
+      defenders: this.buildDefenders(upgrades),
       wave: 1,
       highestWaveThisRun: 1,
       killCount: 0,
@@ -165,6 +150,51 @@ export class RunScene extends Phaser.Scene {
     this.buildUI()
     this.setupSkillInput()
     this.announceWave()
+  }
+
+  // Hero (always centre) plus any owned recruit assigned to a tower slot.
+  private buildDefenders(upgrades: UpgradeState): DefenderRuntimeState[] {
+    const defenders: DefenderRuntimeState[] = [
+      this.makeDefender('hero', FIRE_MAGE, UpgradeSystem.resolveFireMage(upgrades.defenders.fireMage), FIRE_MAGE_SKILLS),
+    ]
+    const towers: { slot: 'north' | 'south'; slotId: DefenderSlotId }[] = [
+      { slot: 'north', slotId: 'towerNorth' },
+      { slot: 'south', slotId: 'towerSouth' },
+    ]
+    for (const { slot, slotId } of towers) {
+      const recruitId = gameState.loadout[slot]
+      if (!recruitId || !gameState.ownsRecruit(recruitId) || !RECRUITS[recruitId]) continue
+      const stats = this.resolveRecruitStats(recruitId, upgrades)
+      if (stats) defenders.push(this.makeDefender(slotId, RECRUITS[recruitId].definition, stats, []))
+    }
+    return defenders
+  }
+
+  private resolveRecruitStats(recruitId: string, upgrades: UpgradeState): DefenderBasicStats | null {
+    if (recruitId === 'iceMage') return UpgradeSystem.resolveIceMage(upgrades.defenders.iceMage)
+    return null
+  }
+
+  private makeDefender(
+    slotId: DefenderSlotId,
+    definition: DefenderDefinition,
+    stats: DefenderBasicStats,
+    skillDefs: SkillDefinition[],
+  ): DefenderRuntimeState {
+    const slot = DEFENDER_SLOTS[slotId]
+    return {
+      slotId,
+      definition,
+      x: slot.x,
+      y: slot.y,
+      basicDamage: stats.damage,
+      basicInterval: stats.castInterval,
+      attackTimer: stats.castInterval,
+      mp: 0, // defined starting value — regenerates toward maxMp during the run
+      maxMp: stats.maxMp,
+      mpRegen: stats.mpRegen,
+      skills: skillDefs.map((def) => ({ definition: def, cooldownTimer: 0 })),
+    }
   }
 
   // ── Build static UI ──────────────────────────────────────
@@ -246,18 +276,22 @@ export class RunScene extends Phaser.Scene {
     marker.lineStyle(1, 0x1f2937, 1)
     marker.lineBetween(MELEE_X + 20, FLOOR_TOP + 8, MELEE_X + 20, FLOOR_BOTTOM - 8)
 
-    // Empty tower slots (future recruit positions) shown as faint placeholders
-    for (const slot of [DEFENDER_SLOTS.towerNorth, DEFENDER_SLOTS.towerSouth]) {
-      this.add.rectangle(slot.x, slot.y, 34, 34, 0x000000, 0)
-        .setStrokeStyle(1, 0x374151).setOrigin(0.5)
-      this.add.text(slot.x, slot.y, '➕', { fontSize: '16px' }).setOrigin(0.5).setAlpha(0.3)
+    // Defenders on their wall slots; empty tower slots show a faint placeholder.
+    const slotIds: DefenderSlotId[] = ['towerNorth', 'hero', 'towerSouth']
+    for (const slotId of slotIds) {
+      const slot = DEFENDER_SLOTS[slotId]
+      const defender = this.run.defenders.find((d) => d.slotId === slotId)
+      if (defender) {
+        const sprite = this.add.text(slot.x, slot.y, defender.definition.emoji, {
+          fontSize: slotId === 'hero' ? '46px' : '38px',
+        }).setOrigin(0.5)
+        this.defenderSprites.set(slotId, sprite)
+      } else {
+        this.add.rectangle(slot.x, slot.y, 34, 34, 0x000000, 0)
+          .setStrokeStyle(1, 0x374151).setOrigin(0.5)
+        this.add.text(slot.x, slot.y, '➕', { fontSize: '16px' }).setOrigin(0.5).setAlpha(0.3)
+      }
     }
-
-    // Fire Mage hero defending the central gate
-    const hero = this.run.defenders[0]
-    this.mageSprite = this.add.text(hero.x, hero.y, FIRE_MAGE.emoji, {
-      fontSize: '46px',
-    }).setOrigin(0.5)
 
     // ── Castle status panel (bottom-left) ────────────────
     this.drawPanel(20, 335, 360, 250, '#111827')
@@ -562,18 +596,37 @@ export class RunScene extends Phaser.Scene {
     }
 
     d.attackTimer = d.basicInterval
-    const dmg = CombatSystem.basicAttackDamage(d) // Fireball, no MP cost
+    const dmg = CombatSystem.basicAttackDamage(d) // basic attack, no MP cost
     target.hp = Math.max(0, target.hp - dmg)
-    this.castFireboltVisual(d.x, d.y, target.x, target.y)
+    this.castBasicAttackVisual(d, target.x, target.y)
     this.updateEnemyView(target)
     this.popEnemy(target)
-    this.log(`🔥 ${dmg} → ${target.definition.name} (${target.hp}/${target.maxHp})`)
+    if (d.definition.slowFactor !== undefined && d.definition.slowDurationSec !== undefined) {
+      this.applySlow(target, d.definition.slowFactor, d.definition.slowDurationSec)
+    }
+    this.log(`${d.definition.basicAttackEmoji} ${dmg} → ${target.definition.name} (${target.hp}/${target.maxHp})`)
 
     if (target.hp <= 0) this.killEnemy(target)
   }
 
+  // Slow an enemy to a fraction of its original speed for a duration. Always
+  // restores from baseSpeed, so reapplying never compounds or sticks.
+  private applySlow(enemy: RunEnemy, factor: number, duration: number) {
+    enemy.speed = enemy.baseSpeed * factor
+    enemy.slowTimer = duration
+  }
+
   private updateEnemies(dt: number) {
     for (const enemy of this.activeEnemies) {
+      // Tick any active slow and restore base speed when it expires.
+      if (enemy.slowTimer > 0) {
+        enemy.slowTimer -= dt
+        if (enemy.slowTimer <= 0) {
+          enemy.slowTimer = 0
+          enemy.speed = enemy.baseSpeed
+        }
+      }
+
       // Taunt: a Fire Elemental in range pulls the enemy off the castle.
       const taunt = this.tauntTargetFor(enemy)
       if (taunt) {
@@ -987,14 +1040,17 @@ export class RunScene extends Phaser.Scene {
     })
   }
 
-  private castFireboltVisual(originX: number, originY: number, targetX: number, targetY: number) {
-    this.tweens.add({
-      targets: this.mageSprite,
-      scale: { from: 1.15, to: 1 },
-      duration: 120,
-      ease: 'Quad.easeOut',
-    })
-    const bolt = this.add.text(originX + 22, originY, '🔥', {
+  private castBasicAttackVisual(defender: DefenderRuntimeState, targetX: number, targetY: number) {
+    const sprite = this.defenderSprites.get(defender.slotId)
+    if (sprite) {
+      this.tweens.add({
+        targets: sprite,
+        scale: { from: 1.15, to: 1 },
+        duration: 120,
+        ease: 'Quad.easeOut',
+      })
+    }
+    const bolt = this.add.text(defender.x + 22, defender.y, defender.definition.basicAttackEmoji, {
       fontSize: '22px',
     }).setOrigin(0.5)
     this.tweens.add({

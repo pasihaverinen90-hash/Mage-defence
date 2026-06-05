@@ -1,4 +1,4 @@
-import type { SaveData, UpgradeState, UpgradeCategory } from '../types/game'
+import type { SaveData, UpgradeState, UpgradeCategory, RecruitLoadout } from '../types/game'
 import { SaveSystem } from './SaveSystem'
 
 // Singleton holding current runtime state derived from save data.
@@ -54,6 +54,30 @@ class GameState {
     this.persist()
   }
 
+  get ownedRecruits(): string[] {
+    return this._data.ownedRecruits
+  }
+
+  get loadout(): RecruitLoadout {
+    return this._data.loadout
+  }
+
+  ownsRecruit(id: string): boolean {
+    return this._data.ownedRecruits.includes(id)
+  }
+
+  addRecruit(id: string): void {
+    if (!this._data.ownedRecruits.includes(id)) {
+      this._data.ownedRecruits.push(id)
+      this.persist()
+    }
+  }
+
+  setLoadoutSlot(slot: 'north' | 'south', recruitId: string | null): void {
+    this._data.loadout[slot] = recruitId
+    this.persist()
+  }
+
   recordRunEnd(highestWave: number, blueManaEarned: number): void {
     this._data.totalRuns += 1
     if (highestWave > this._data.highestWaveEver) {
@@ -76,6 +100,7 @@ class GameState {
     const up = this._data.upgrades
     if (category === 'castle') return up.castle as unknown as Record<string, number>
     if (category === 'fireMage') return up.defenders.fireMage as unknown as Record<string, number>
+    if (category === 'iceMage') return up.defenders.iceMage as unknown as Record<string, number>
     return up.global as unknown as Record<string, number>
   }
 

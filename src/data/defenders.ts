@@ -8,6 +8,7 @@ export const FIRE_MAGE: DefenderDefinition = {
   name: 'Fire Mage',
   emoji: '🧙',
   basicAttackName: 'Fireball',
+  basicAttackEmoji: '🔥',
 }
 
 const A = BALANCE.arena
