@@ -39,10 +39,10 @@ export class UpgradeScene extends Phaser.Scene {
     // ── Recruits panel (left, below progress) ──────────────
     this.drawPanel(20, 420, 250, 150)
     this.add.text(30, 428, 'RECRUITS', { fontSize: '13px', color: '#a78bfa', fontFamily: 'monospace' })
-    let ry = 448
+    let ry = 456
     for (const id of RECRUIT_ORDER) {
       this.buildRecruitRow(id, ry)
-      ry += 52
+      ry += 28
     }
 
     // ── Upgrade panel (right, two-column flow) ─────────────
@@ -106,18 +106,18 @@ export class UpgradeScene extends Phaser.Scene {
     }
   }
 
-  // One recruit row: a Buy button when locked, or North/South/Off when owned.
+  // One single-line recruit row: name + Buy (when locked) or N / S / ✕ (owned).
   private buildRecruitRow(id: string, y: number) {
     const info = RECRUITS[id]
-    this.add.text(30, y, `${info.definition.emoji}  ${info.definition.name}`, {
-      fontSize: '13px', color: '#c4b5fd', fontFamily: 'monospace',
-    })
+    this.add.text(30, y, `${info.definition.emoji} ${info.definition.name}`, {
+      fontSize: '11px', color: '#c4b5fd', fontFamily: 'monospace',
+    }).setOrigin(0, 0.5)
 
     if (!gameState.ownsRecruit(id)) {
-      const buy = this.add.text(30, y + 22, ` Buy ${info.cost}💧 `, {
-        fontSize: '12px', color: '#60a5fa', fontFamily: 'monospace',
-        backgroundColor: '#1e1b4b', padding: { x: 8, y: 3 },
-      }).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+      const buy = this.add.text(150, y, ` Buy ${info.cost}💧 `, {
+        fontSize: '11px', color: '#60a5fa', fontFamily: 'monospace',
+        backgroundColor: '#1e1b4b', padding: { x: 6, y: 3 },
+      }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
       if (!RecruitSystem.canBuy(id)) buy.setColor('#6b7280')
       buy.on('pointerdown', () => {
         if (RecruitSystem.buy(id)) this.scene.restart()
@@ -125,12 +125,12 @@ export class UpgradeScene extends Phaser.Scene {
       return
     }
 
-    this.makeAssignButton('North', 'north', id, 30, y + 22)
-    this.makeAssignButton('South', 'south', id, 110, y + 22)
-    const off = this.add.text(192, y + 22, ' Off ', {
-      fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace',
-      backgroundColor: '#1c1917', padding: { x: 8, y: 3 },
-    }).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+    this.makeAssignButton('N', 'north', id, 150, y)
+    this.makeAssignButton('S', 'south', id, 182, y)
+    const off = this.add.text(214, y, ' ✕ ', {
+      fontSize: '11px', color: '#9ca3af', fontFamily: 'monospace',
+      backgroundColor: '#1c1917', padding: { x: 5, y: 3 },
+    }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
     off.on('pointerdown', () => {
       RecruitSystem.unassign(id)
       this.refreshRecruits()
@@ -139,9 +139,9 @@ export class UpgradeScene extends Phaser.Scene {
 
   private makeAssignButton(label: string, slot: 'north' | 'south', id: string, x: number, y: number) {
     const btn = this.add.text(x, y, ` ${label} `, {
-      fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace',
-      backgroundColor: '#1e1b4b', padding: { x: 6, y: 3 },
-    }).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+      fontSize: '11px', color: '#9ca3af', fontFamily: 'monospace',
+      backgroundColor: '#1e1b4b', padding: { x: 5, y: 3 },
+    }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
     btn.on('pointerdown', () => {
       RecruitSystem.assign(slot, id)
       this.refreshRecruits()

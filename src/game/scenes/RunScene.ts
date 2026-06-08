@@ -6,12 +6,12 @@ import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
 import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
-import { FIRE_MAGE_SKILLS, LIGHTNING_MAGE_SKILLS } from '../../data/skills'
+import { FIRE_MAGE_SKILLS, LIGHTNING_MAGE_SKILLS, ARCHER_SKILLS } from '../../data/skills'
 import { RECRUITS } from '../../data/recruits'
 import type {
   CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState, DefenderDefinition,
   DefenderSlotId, DefenderBasicStats, Projectile, SkillRuntimeState, SkillDefinition,
-  FieldEffect, Summon, UpgradeState, ChainLightningStats,
+  FieldEffect, Summon, UpgradeState, ChainLightningStats, PiercingShotStats,
 } from '../../types/game'
 
 const W = 800
@@ -181,11 +181,13 @@ export class RunScene extends Phaser.Scene {
   private resolveRecruitStats(recruitId: string, upgrades: UpgradeState): DefenderBasicStats | null {
     if (recruitId === 'iceMage') return UpgradeSystem.resolveIceMage(upgrades.defenders.iceMage)
     if (recruitId === 'lightningMage') return UpgradeSystem.resolveLightningMage(upgrades.defenders.lightningMage)
+    if (recruitId === 'archer') return UpgradeSystem.resolveArcher(upgrades.defenders.archer)
     return null
   }
 
   private recruitSkillDefs(recruitId: string): SkillDefinition[] {
     if (recruitId === 'lightningMage') return LIGHTNING_MAGE_SKILLS
+    if (recruitId === 'archer') return ARCHER_SKILLS
     return []
   }
 
@@ -248,16 +250,17 @@ export class RunScene extends Phaser.Scene {
     endBtn.on('pointerout', () => endBtn.setAlpha(1))
 
     // Compact skill buttons (emoji + MP cost) for every defender's skills.
-    let sx = 258
+    // Up to 5 fit (Fire Mage's 3 + two skilled recruits) before the speed button.
+    let sx = 248
     for (const defender of this.run.defenders) {
       for (const skill of defender.skills) {
         const btn = this.add.text(sx, 70, '', {
-          fontSize: '13px', color: '#fbbf24', fontFamily: 'monospace',
-          backgroundColor: '#2a1505', padding: { x: 6, y: 5 },
+          fontSize: '12px', color: '#fbbf24', fontFamily: 'monospace',
+          backgroundColor: '#2a1505', padding: { x: 5, y: 5 },
         }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
         btn.on('pointerdown', () => this.onSkillButton(defender, skill))
         this.skillButtonEntries.push({ btn, defender, skill })
-        sx += 64
+        sx += 52
       }
     }
 
@@ -465,16 +468,59 @@ export class RunScene extends Phaser.Scene {
 
   // Instant (no-placement) skills fire immediately on the closest enemy.
   private castInstantSkill(defender: DefenderRuntimeState, skill: SkillRuntimeState) {
-    if (skill.definition.effectKind !== 'chainLightning') return
     const first = this.getClosestEnemy()
     if (!first) return // nothing to hit — don't spend MP
 
-    const cfg = UpgradeSystem.resolveChainLightning(gameState.upgrades.defenders.lightningMage)
+    const kind = skill.definition.effectKind
+    if (kind === 'chainLightning') {
+      const cfg = UpgradeSystem.resolveChainLightning(gameState.upgrades.defenders.lightningMage)
+      skill.cooldownTimer = cfg.cooldownSec
+      this.applyChainLightning(defender, first, cfg)
+    } else if (kind === 'piercingShot') {
+      const cfg = UpgradeSystem.resolvePiercingShot(gameState.upgrades.defenders.archer)
+      skill.cooldownTimer = cfg.cooldownSec
+      this.applyPiercingShot(defender, first, cfg)
+    } else {
+      return // unknown instant skill — don't spend MP
+    }
+
     defender.mp -= skill.definition.mpCost
-    skill.cooldownTimer = cfg.cooldownSec
-    this.applyChainLightning(defender, first, cfg)
     this.updateDefenderUI()
     this.updateSkillButtons()
+  }
+
+  // Piercing Shot: a horizontal arrow that hits every enemy within a vertical
+  // band around the target's Y, anywhere across the battlefield.
+  private applyPiercingShot(defender: DefenderRuntimeState, target: RunEnemy, cfg: PiercingShotStats) {
+    const half = cfg.width / 2
+    const d = Math.max(1, Math.floor(cfg.damage))
+    let hits = 0
+    for (const e of [...this.activeEnemies]) {
+      if (Math.abs(e.y - target.y) > half) continue
+      e.hp = Math.max(0, e.hp - d)
+      hits++
+      if (e.hp <= 0) this.killEnemy(e)
+      else {
+        this.updateEnemyView(e)
+        this.popEnemy(e)
+      }
+    }
+    this.piercingShotVisual(defender, target.y)
+    this.log(`🏹 Piercing Shot hits ${hits} for ${d}`)
+  }
+
+  private piercingShotVisual(defender: DefenderRuntimeState, y: number) {
+    const line = this.add.line(0, 0, defender.x, y, SPAWN_X + 20, y, 0xfde68a)
+      .setOrigin(0, 0).setLineWidth(2).setDepth(39)
+    this.tweens.add({
+      targets: line, alpha: { from: 0.8, to: 0 },
+      duration: 280 / this.run.speed, onComplete: () => line.destroy(),
+    })
+    const arrow = this.add.text(defender.x + 22, y, '🏹', { fontSize: '22px' }).setOrigin(0.5).setDepth(40)
+    this.tweens.add({
+      targets: arrow, x: SPAWN_X + 20,
+      duration: 260 / this.run.speed, ease: 'Linear', onComplete: () => arrow.destroy(),
+    })
   }
 
   private applyChainLightning(defender: DefenderRuntimeState, first: RunEnemy, cfg: ChainLightningStats) {

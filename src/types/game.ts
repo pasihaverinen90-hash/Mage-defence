@@ -55,7 +55,7 @@ export interface SkillDefinition {
   mpCost: number
   cooldownSec: number
   targeting: 'pointX' | 'area' | 'none' // pointX/area = placement; none = instant
-  effectKind: 'fireWall' | 'firestorm' | 'fireElemental' | 'chainLightning'
+  effectKind: 'fireWall' | 'firestorm' | 'fireElemental' | 'chainLightning' | 'piercingShot'
 }
 
 export interface SkillRuntimeState {
@@ -86,6 +86,13 @@ export interface ChainLightningStats {
   jumps: number // extra targets beyond the first
   jumpRadius: number
   falloff: number // damage multiplier applied per jump
+  cooldownSec: number
+}
+
+// Resolved (per-cast) Piercing Shot parameters from upgrade levels.
+export interface PiercingShotStats {
+  damage: number
+  width: number // vertical band thickness around the target's Y
   cooldownSec: number
 }
 
@@ -145,7 +152,7 @@ export interface CastleStats {
 }
 
 // Categories that group upgrade definitions and route their saved levels.
-export type UpgradeCategory = 'castle' | 'fireMage' | 'iceMage' | 'lightningMage' | 'global'
+export type UpgradeCategory = 'castle' | 'fireMage' | 'iceMage' | 'lightningMage' | 'archer' | 'global'
 
 // Shared castle pool that is the defended target during a run.
 export interface CastleState {
@@ -268,6 +275,16 @@ export interface LightningMageUpgradeLevels {
   chainLightningCooldown: number
 }
 
+export interface ArcherUpgradeLevels {
+  arrowDamage: number
+  arrowAttackSpeed: number
+  maxMp: number
+  mpRegen: number
+  piercingShotDamage: number
+  piercingShotWidth: number
+  piercingShotCooldown: number
+}
+
 export interface UpgradeState {
   castle: CastleUpgradeLevels
   global: GlobalUpgradeLevels
@@ -275,6 +292,7 @@ export interface UpgradeState {
     fireMage: FireMageUpgradeLevels
     iceMage: IceMageUpgradeLevels
     lightningMage: LightningMageUpgradeLevels
+    archer: ArcherUpgradeLevels
   }
 }
 

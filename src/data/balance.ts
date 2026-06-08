@@ -63,6 +63,19 @@ export const BALANCE = {
       falloff: 0.6, // each jump deals 60% of the previous hit
     },
   },
+  archer: {
+    baseDamage: 7, // single-target, lower per hit but fast
+    baseCastInterval: 0.8, // seconds (fastest defender)
+    baseMaxMp: 85,
+    baseMpRegen: 5, // MP/sec
+    piercingShot: {
+      mpCost: 35,
+      cooldownSec: 7,
+      minCooldownSec: 3,
+      baseDamage: 20,
+      baseWidth: 40, // vertical band thickness (hits enemies near the target's Y)
+    },
+  },
   upgrades: {
     // per-level additions / multipliers, keyed to upgrade definitions
     castleMaxHpPerLevel: 20,           // +20 max HP per level
@@ -95,6 +108,13 @@ export const BALANCE = {
     chainLightningDamagePerLevel: 3,      // +3 Chain Lightning damage per level
     chainLightningJumpsPerLevel: 1,       // +1 jump per level
     chainLightningCooldownPerLevel: 1,    // -1s cooldown per level
+    arrowDamagePerLevel: 0.15,            // +15% Arrow Shot damage per level
+    arrowAttackSpeedPerLevel: 0.08,       // -8% attack interval per level
+    archerMaxMpPerLevel: 20,              // +20 max MP per level
+    archerMpRegenPerLevel: 1,             // +1 MP/sec per level
+    piercingShotDamagePerLevel: 4,        // +4 Piercing Shot damage per level
+    piercingShotWidthPerLevel: 12,        // +12 band width per level
+    piercingShotCooldownPerLevel: 1,      // -1s cooldown per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {

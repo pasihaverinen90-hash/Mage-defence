@@ -46,3 +46,15 @@ export const CHAIN_LIGHTNING: SkillDefinition = {
 }
 
 export const LIGHTNING_MAGE_SKILLS: SkillDefinition[] = [CHAIN_LIGHTNING]
+
+export const PIERCING_SHOT: SkillDefinition = {
+  id: 'piercingShot',
+  name: 'Piercing Shot',
+  emoji: '🏹',
+  mpCost: BALANCE.archer.piercingShot.mpCost,
+  cooldownSec: BALANCE.archer.piercingShot.cooldownSec,
+  targeting: 'none', // instant — fires through the closest enemy's lane
+  effectKind: 'piercingShot',
+}
+
+export const ARCHER_SKILLS: SkillDefinition[] = [PIERCING_SHOT]

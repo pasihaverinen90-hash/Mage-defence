@@ -6,10 +6,12 @@ import type {
   FirestormStats,
   FireElementalStats,
   ChainLightningStats,
+  PiercingShotStats,
   CastleUpgradeLevels,
   FireMageUpgradeLevels,
   IceMageUpgradeLevels,
   LightningMageUpgradeLevels,
+  ArcherUpgradeLevels,
   UpgradeDefinition,
 } from '../types/game'
 import { BALANCE } from '../data/balance'
@@ -101,6 +103,32 @@ export const UpgradeSystem = {
       cooldownSec: Math.max(
         b.minCooldownSec,
         b.cooldownSec - levels.chainLightningCooldown * u.chainLightningCooldownPerLevel,
+      ),
+    }
+  },
+
+  resolveArcher(levels: ArcherUpgradeLevels): DefenderBasicStats {
+    const b = BALANCE.archer
+    const u = BALANCE.upgrades
+    const damageMult = 1 + levels.arrowDamage * u.arrowDamagePerLevel
+    const intervalMult = Math.max(0.3, 1 - levels.arrowAttackSpeed * u.arrowAttackSpeedPerLevel)
+    return {
+      damage: Math.floor(b.baseDamage * damageMult),
+      castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
+      maxMp: b.baseMaxMp + levels.maxMp * u.archerMaxMpPerLevel,
+      mpRegen: b.baseMpRegen + levels.mpRegen * u.archerMpRegenPerLevel,
+    }
+  },
+
+  resolvePiercingShot(levels: ArcherUpgradeLevels): PiercingShotStats {
+    const b = BALANCE.archer.piercingShot
+    const u = BALANCE.upgrades
+    return {
+      damage: b.baseDamage + levels.piercingShotDamage * u.piercingShotDamagePerLevel,
+      width: b.baseWidth + levels.piercingShotWidth * u.piercingShotWidthPerLevel,
+      cooldownSec: Math.max(
+        b.minCooldownSec,
+        b.cooldownSec - levels.piercingShotCooldown * u.piercingShotCooldownPerLevel,
       ),
     }
   },

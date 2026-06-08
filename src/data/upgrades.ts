@@ -115,6 +115,41 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Chain Cooldown', description: '-1s Chain Lightning cooldown per level', emoji: '⌛',
     costBase: 30, costMultiplier: 1.8, maxLevel: 4,
   },
+  arrowDamage: {
+    id: 'arrowDamage', category: 'archer', field: 'arrowDamage',
+    name: 'Arrow Damage', description: '+15% Arrow Shot damage per level', emoji: '🏹',
+    costBase: 10, costMultiplier: 1.6, maxLevel: 50,
+  },
+  arrowAttackSpeed: {
+    id: 'arrowAttackSpeed', category: 'archer', field: 'arrowAttackSpeed',
+    name: 'Arrow Speed', description: '-8% attack interval per level', emoji: '⚡',
+    costBase: 12, costMultiplier: 1.65, maxLevel: 10,
+  },
+  archerMaxMp: {
+    id: 'archerMaxMp', category: 'archer', field: 'maxMp',
+    name: 'Archer MP', description: '+20 max MP per level', emoji: '🔷',
+    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
+  },
+  archerMpRegen: {
+    id: 'archerMpRegen', category: 'archer', field: 'mpRegen',
+    name: 'Archer Regen', description: '+1 MP/sec per level', emoji: '🌀',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
+  piercingShotDamage: {
+    id: 'piercingShotDamage', category: 'archer', field: 'piercingShotDamage',
+    name: 'Pierce Dmg', description: '+4 Piercing Shot damage per level', emoji: '🏹',
+    costBase: 18, costMultiplier: 1.6, maxLevel: 30,
+  },
+  piercingShotWidth: {
+    id: 'piercingShotWidth', category: 'archer', field: 'piercingShotWidth',
+    name: 'Pierce Width', description: '+12 band width per level', emoji: '↕️',
+    costBase: 20, costMultiplier: 1.6, maxLevel: 20,
+  },
+  piercingShotCooldown: {
+    id: 'piercingShotCooldown', category: 'archer', field: 'piercingShotCooldown',
+    name: 'Pierce Cooldown', description: '-1s Piercing Shot cooldown per level', emoji: '⌛',
+    costBase: 30, costMultiplier: 1.8, maxLevel: 4,
+  },
 }
 
 export interface UpgradeSection {
@@ -128,5 +163,6 @@ export const UPGRADE_SECTIONS: UpgradeSection[] = [
   { label: '🧙 Fire Mage', upgradeIds: ['fireballDamage', 'fireballCastSpeed', 'fireMageMaxMp', 'fireMageMpRegen'] },
   { label: '🥶 Ice Mage', upgradeIds: ['iceShardDamage', 'iceShardCastSpeed', 'iceMageMaxMp', 'iceMageMpRegen'], requiresRecruit: 'iceMage' },
   { label: '⚡ Lightning Mage', upgradeIds: ['lightningBoltDamage', 'lightningBoltCastSpeed', 'lightningMageMaxMp', 'lightningMageMpRegen', 'chainLightningDamage', 'chainLightningJumps', 'chainLightningCooldown'], requiresRecruit: 'lightningMage' },
+  { label: '🏹 Archer', upgradeIds: ['arrowDamage', 'arrowAttackSpeed', 'archerMaxMp', 'archerMpRegen', 'piercingShotDamage', 'piercingShotWidth', 'piercingShotCooldown'], requiresRecruit: 'archer' },
   { label: '💧 Global', upgradeIds: ['blueManaGain'] },
 ]
