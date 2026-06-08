@@ -64,9 +64,12 @@ export class UpgradeScene extends Phaser.Scene {
   }
 
   // Flow sections down the left column, spilling into the right when it fills.
+  // Recruit sections show only while that recruit is assigned to a tower, which
+  // caps the panel at two recruit sections (one per slot).
   private buildUpgradeColumns() {
+    const { north, south } = gameState.loadout
     const sections = UPGRADE_SECTIONS.filter(
-      (s) => !s.requiresRecruit || gameState.ownsRecruit(s.requiresRecruit),
+      (s) => !s.requiresRecruit || s.requiresRecruit === north || s.requiresRecruit === south,
     )
     const colX = [295, 538]
     const colY = [66, 66]
@@ -133,7 +136,7 @@ export class UpgradeScene extends Phaser.Scene {
     }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
     off.on('pointerdown', () => {
       RecruitSystem.unassign(id)
-      this.refreshRecruits()
+      this.scene.restart() // rebuild so the recruit's upgrade section hides
     })
   }
 
@@ -144,7 +147,7 @@ export class UpgradeScene extends Phaser.Scene {
     }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
     btn.on('pointerdown', () => {
       RecruitSystem.assign(slot, id)
-      this.refreshRecruits()
+      this.scene.restart() // rebuild so the recruit's upgrade section shows
     })
     this.assignButtons.set(`${id}:${slot}`, btn)
   }

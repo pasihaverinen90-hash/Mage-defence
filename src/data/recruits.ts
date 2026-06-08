@@ -29,6 +29,14 @@ export const ARCHER: DefenderDefinition = {
   basicAttackEmoji: '🏹',
 }
 
+export const NECROMANCER: DefenderDefinition = {
+  id: 'necromancer',
+  name: 'Necromancer',
+  emoji: '☠️',
+  basicAttackName: 'Shadow Bolt',
+  basicAttackEmoji: '🟣',
+}
+
 export interface RecruitInfo {
   definition: DefenderDefinition
   cost: number // Blue Mana to unlock
@@ -38,7 +46,8 @@ export const RECRUITS: Record<string, RecruitInfo> = {
   iceMage: { definition: ICE_MAGE, cost: 150 },
   lightningMage: { definition: LIGHTNING_MAGE, cost: 220 },
   archer: { definition: ARCHER, cost: 200 },
+  necromancer: { definition: NECROMANCER, cost: 250 },
 }
 
 // Stable display order for the recruits panel.
-export const RECRUIT_ORDER: string[] = ['iceMage', 'lightningMage', 'archer']
+export const RECRUIT_ORDER: string[] = ['iceMage', 'lightningMage', 'archer', 'necromancer']

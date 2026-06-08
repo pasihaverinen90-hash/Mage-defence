@@ -58,3 +58,15 @@ export const PIERCING_SHOT: SkillDefinition = {
 }
 
 export const ARCHER_SKILLS: SkillDefinition[] = [PIERCING_SHOT]
+
+export const RAISE_SKELETON: SkillDefinition = {
+  id: 'raiseSkeleton',
+  name: 'Raise Skeleton',
+  emoji: '💀',
+  mpCost: BALANCE.necromancer.raiseSkeleton.mpCost,
+  cooldownSec: BALANCE.necromancer.raiseSkeleton.cooldownSec,
+  targeting: 'area', // placed on the battlefield like Fire Elemental
+  effectKind: 'raiseSkeleton',
+}
+
+export const NECROMANCER_SKILLS: SkillDefinition[] = [RAISE_SKELETON]

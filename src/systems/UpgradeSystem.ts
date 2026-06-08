@@ -5,6 +5,7 @@ import type {
   FireWallStats,
   FirestormStats,
   FireElementalStats,
+  SummonStats,
   ChainLightningStats,
   PiercingShotStats,
   CastleUpgradeLevels,
@@ -12,6 +13,7 @@ import type {
   IceMageUpgradeLevels,
   LightningMageUpgradeLevels,
   ArcherUpgradeLevels,
+  NecromancerUpgradeLevels,
   UpgradeDefinition,
 } from '../types/game'
 import { BALANCE } from '../data/balance'
@@ -130,6 +132,32 @@ export const UpgradeSystem = {
         b.minCooldownSec,
         b.cooldownSec - levels.piercingShotCooldown * u.piercingShotCooldownPerLevel,
       ),
+    }
+  },
+
+  resolveNecromancer(levels: NecromancerUpgradeLevels): DefenderBasicStats {
+    const b = BALANCE.necromancer
+    const u = BALANCE.upgrades
+    const damageMult = 1 + levels.shadowBoltDamage * u.shadowBoltDamagePerLevel
+    const intervalMult = Math.max(0.3, 1 - levels.shadowBoltCastSpeed * u.shadowBoltCastSpeedPerLevel)
+    return {
+      damage: Math.floor(b.baseDamage * damageMult),
+      castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
+      maxMp: b.baseMaxMp + levels.maxMp * u.necromancerMaxMpPerLevel,
+      mpRegen: b.baseMpRegen + levels.mpRegen * u.necromancerMpRegenPerLevel,
+    }
+  },
+
+  resolveRaiseSkeleton(levels: NecromancerUpgradeLevels): SummonStats {
+    const b = BALANCE.necromancer.raiseSkeleton
+    const u = BALANCE.upgrades
+    return {
+      hp: b.baseHp + levels.raiseSkeletonHp * u.raiseSkeletonHpPerLevel,
+      durationSec: b.baseDurationSec + levels.raiseSkeletonDuration * u.raiseSkeletonDurationPerLevel,
+      aoeDamage: b.baseAoeDamage + levels.raiseSkeletonDamage * u.raiseSkeletonDamagePerLevel,
+      aoeRadius: b.aoeRadius,
+      tauntRadius: b.tauntRadius,
+      aoeInterval: b.aoeInterval,
     }
   },
 

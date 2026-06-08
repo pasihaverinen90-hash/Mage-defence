@@ -55,7 +55,7 @@ export interface SkillDefinition {
   mpCost: number
   cooldownSec: number
   targeting: 'pointX' | 'area' | 'none' // pointX/area = placement; none = instant
-  effectKind: 'fireWall' | 'firestorm' | 'fireElemental' | 'chainLightning' | 'piercingShot'
+  effectKind: 'fireWall' | 'firestorm' | 'fireElemental' | 'chainLightning' | 'piercingShot' | 'raiseSkeleton'
 }
 
 export interface SkillRuntimeState {
@@ -96,8 +96,8 @@ export interface PiercingShotStats {
   cooldownSec: number
 }
 
-// Resolved (per-cast) Fire Elemental parameters from upgrade levels.
-export interface FireElementalStats {
+// Resolved (per-cast) parameters shared by summons (Fire Elemental, Skeleton).
+export interface SummonStats {
   hp: number
   durationSec: number
   aoeDamage: number
@@ -105,12 +105,13 @@ export interface FireElementalStats {
   tauntRadius: number
   aoeInterval: number
 }
+export type FireElementalStats = SummonStats
 
 // A summoned tanking entity that taunts nearby enemies (they attack it instead
-// of the castle) and Fire-Bashes enemies around itself. Dies on 0 HP or timeout.
+// of the castle) and damages enemies around itself. Dies on 0 HP or timeout.
 export interface Summon {
   id: string
-  kind: 'fireElemental'
+  kind: 'fireElemental' | 'skeleton'
   x: number
   y: number
   hp: number
@@ -152,7 +153,7 @@ export interface CastleStats {
 }
 
 // Categories that group upgrade definitions and route their saved levels.
-export type UpgradeCategory = 'castle' | 'fireMage' | 'iceMage' | 'lightningMage' | 'archer' | 'global'
+export type UpgradeCategory = 'castle' | 'fireMage' | 'iceMage' | 'lightningMage' | 'archer' | 'necromancer' | 'global'
 
 // Shared castle pool that is the defended target during a run.
 export interface CastleState {
@@ -285,6 +286,17 @@ export interface ArcherUpgradeLevels {
   piercingShotCooldown: number
 }
 
+export interface NecromancerUpgradeLevels {
+  shadowBoltDamage: number
+  shadowBoltCastSpeed: number
+  maxMp: number
+  mpRegen: number
+  raiseSkeletonHp: number
+  raiseSkeletonDuration: number
+  raiseSkeletonDamage: number
+  raiseSkeletonCooldown: number
+}
+
 export interface UpgradeState {
   castle: CastleUpgradeLevels
   global: GlobalUpgradeLevels
@@ -293,6 +305,7 @@ export interface UpgradeState {
     iceMage: IceMageUpgradeLevels
     lightningMage: LightningMageUpgradeLevels
     archer: ArcherUpgradeLevels
+    necromancer: NecromancerUpgradeLevels
   }
 }
 

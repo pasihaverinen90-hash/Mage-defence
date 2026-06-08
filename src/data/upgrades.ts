@@ -150,6 +150,46 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Pierce Cooldown', description: '-1s Piercing Shot cooldown per level', emoji: '⌛',
     costBase: 30, costMultiplier: 1.8, maxLevel: 4,
   },
+  shadowBoltDamage: {
+    id: 'shadowBoltDamage', category: 'necromancer', field: 'shadowBoltDamage',
+    name: 'Shadow Damage', description: '+15% Shadow Bolt damage per level', emoji: '🟣',
+    costBase: 10, costMultiplier: 1.6, maxLevel: 50,
+  },
+  shadowBoltCastSpeed: {
+    id: 'shadowBoltCastSpeed', category: 'necromancer', field: 'shadowBoltCastSpeed',
+    name: 'Shadow Cast', description: '-8% cast interval per level', emoji: '⚡',
+    costBase: 12, costMultiplier: 1.65, maxLevel: 10,
+  },
+  necromancerMaxMp: {
+    id: 'necromancerMaxMp', category: 'necromancer', field: 'maxMp',
+    name: 'Necro MP', description: '+20 max MP per level', emoji: '🔷',
+    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
+  },
+  necromancerMpRegen: {
+    id: 'necromancerMpRegen', category: 'necromancer', field: 'mpRegen',
+    name: 'Necro Regen', description: '+1 MP/sec per level', emoji: '🌀',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
+  raiseSkeletonHp: {
+    id: 'raiseSkeletonHp', category: 'necromancer', field: 'raiseSkeletonHp',
+    name: 'Skeleton HP', description: '+20 skeleton HP per level', emoji: '🦴',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
+  raiseSkeletonDuration: {
+    id: 'raiseSkeletonDuration', category: 'necromancer', field: 'raiseSkeletonDuration',
+    name: 'Skeleton Time', description: '+1s skeleton duration per level', emoji: '⏳',
+    costBase: 18, costMultiplier: 1.6, maxLevel: 20,
+  },
+  raiseSkeletonDamage: {
+    id: 'raiseSkeletonDamage', category: 'necromancer', field: 'raiseSkeletonDamage',
+    name: 'Skeleton Dmg', description: '+2 skeleton melee damage per level', emoji: '💀',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
+  raiseSkeletonCooldown: {
+    id: 'raiseSkeletonCooldown', category: 'necromancer', field: 'raiseSkeletonCooldown',
+    name: 'Skeleton CD', description: '-1s Raise Skeleton cooldown per level', emoji: '⌛',
+    costBase: 30, costMultiplier: 1.8, maxLevel: 4,
+  },
 }
 
 export interface UpgradeSection {
@@ -164,5 +204,6 @@ export const UPGRADE_SECTIONS: UpgradeSection[] = [
   { label: '🥶 Ice Mage', upgradeIds: ['iceShardDamage', 'iceShardCastSpeed', 'iceMageMaxMp', 'iceMageMpRegen'], requiresRecruit: 'iceMage' },
   { label: '⚡ Lightning Mage', upgradeIds: ['lightningBoltDamage', 'lightningBoltCastSpeed', 'lightningMageMaxMp', 'lightningMageMpRegen', 'chainLightningDamage', 'chainLightningJumps', 'chainLightningCooldown'], requiresRecruit: 'lightningMage' },
   { label: '🏹 Archer', upgradeIds: ['arrowDamage', 'arrowAttackSpeed', 'archerMaxMp', 'archerMpRegen', 'piercingShotDamage', 'piercingShotWidth', 'piercingShotCooldown'], requiresRecruit: 'archer' },
+  { label: '☠️ Necromancer', upgradeIds: ['shadowBoltDamage', 'shadowBoltCastSpeed', 'necromancerMaxMp', 'necromancerMpRegen', 'raiseSkeletonHp', 'raiseSkeletonDuration', 'raiseSkeletonDamage', 'raiseSkeletonCooldown'], requiresRecruit: 'necromancer' },
   { label: '💧 Global', upgradeIds: ['blueManaGain'] },
 ]

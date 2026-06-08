@@ -103,6 +103,7 @@ class GameState {
     if (category === 'iceMage') return up.defenders.iceMage as unknown as Record<string, number>
     if (category === 'lightningMage') return up.defenders.lightningMage as unknown as Record<string, number>
     if (category === 'archer') return up.defenders.archer as unknown as Record<string, number>
+    if (category === 'necromancer') return up.defenders.necromancer as unknown as Record<string, number>
     return up.global as unknown as Record<string, number>
   }
 

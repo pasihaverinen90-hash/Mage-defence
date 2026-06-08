@@ -76,6 +76,23 @@ export const BALANCE = {
       baseWidth: 40, // vertical band thickness (hits enemies near the target's Y)
     },
   },
+  necromancer: {
+    baseDamage: 11, // moderate, slower than Archer
+    baseCastInterval: 1.6, // seconds (slow)
+    baseMaxMp: 95,
+    baseMpRegen: 4, // MP/sec
+    raiseSkeleton: {
+      mpCost: 45,
+      cooldownSec: 10,
+      minCooldownSec: 4,
+      baseHp: 60,
+      baseDurationSec: 8,
+      baseAoeDamage: 5, // small melee swipe
+      aoeInterval: 1.0,
+      tauntRadius: 90,
+      aoeRadius: 55,
+    },
+  },
   upgrades: {
     // per-level additions / multipliers, keyed to upgrade definitions
     castleMaxHpPerLevel: 20,           // +20 max HP per level
@@ -115,6 +132,14 @@ export const BALANCE = {
     piercingShotDamagePerLevel: 4,        // +4 Piercing Shot damage per level
     piercingShotWidthPerLevel: 12,        // +12 band width per level
     piercingShotCooldownPerLevel: 1,      // -1s cooldown per level
+    shadowBoltDamagePerLevel: 0.15,       // +15% Shadow Bolt damage per level
+    shadowBoltCastSpeedPerLevel: 0.08,    // -8% cast interval per level
+    necromancerMaxMpPerLevel: 20,         // +20 max MP per level
+    necromancerMpRegenPerLevel: 1,        // +1 MP/sec per level
+    raiseSkeletonHpPerLevel: 20,          // +20 skeleton HP per level
+    raiseSkeletonDurationPerLevel: 1,     // +1s skeleton duration per level
+    raiseSkeletonDamagePerLevel: 2,       // +2 skeleton melee damage per level
+    raiseSkeletonCooldownPerLevel: 1,     // -1s cooldown per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {

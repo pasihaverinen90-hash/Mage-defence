@@ -6,12 +6,12 @@ import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
 import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
-import { FIRE_MAGE_SKILLS, LIGHTNING_MAGE_SKILLS, ARCHER_SKILLS } from '../../data/skills'
+import { FIRE_MAGE_SKILLS, LIGHTNING_MAGE_SKILLS, ARCHER_SKILLS, NECROMANCER_SKILLS } from '../../data/skills'
 import { RECRUITS } from '../../data/recruits'
 import type {
   CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState, DefenderDefinition,
   DefenderSlotId, DefenderBasicStats, Projectile, SkillRuntimeState, SkillDefinition,
-  FieldEffect, Summon, UpgradeState, ChainLightningStats, PiercingShotStats,
+  FieldEffect, Summon, SummonStats, UpgradeState, ChainLightningStats, PiercingShotStats,
 } from '../../types/game'
 
 const W = 800
@@ -182,12 +182,14 @@ export class RunScene extends Phaser.Scene {
     if (recruitId === 'iceMage') return UpgradeSystem.resolveIceMage(upgrades.defenders.iceMage)
     if (recruitId === 'lightningMage') return UpgradeSystem.resolveLightningMage(upgrades.defenders.lightningMage)
     if (recruitId === 'archer') return UpgradeSystem.resolveArcher(upgrades.defenders.archer)
+    if (recruitId === 'necromancer') return UpgradeSystem.resolveNecromancer(upgrades.defenders.necromancer)
     return null
   }
 
   private recruitSkillDefs(recruitId: string): SkillDefinition[] {
     if (recruitId === 'lightningMage') return LIGHTNING_MAGE_SKILLS
     if (recruitId === 'archer') return ARCHER_SKILLS
+    if (recruitId === 'necromancer') return NECROMANCER_SKILLS
     return []
   }
 
@@ -424,9 +426,10 @@ export class RunScene extends Phaser.Scene {
       this.placementGhost.setVisible(true)
       this.activeGhost = this.placementGhost
     } else {
-      const radius = kind === 'fireElemental'
-        ? UpgradeSystem.resolveFireElemental(levels).tauntRadius
-        : UpgradeSystem.resolveFirestorm(levels).radius
+      let radius: number
+      if (kind === 'fireElemental') radius = UpgradeSystem.resolveFireElemental(levels).tauntRadius
+      else if (kind === 'raiseSkeleton') radius = UpgradeSystem.resolveRaiseSkeleton(gameState.upgrades.defenders.necromancer).tauntRadius
+      else radius = UpgradeSystem.resolveFirestorm(levels).radius
       this.placementGhostCircle.setRadius(radius)
       this.placementGhostCircle.setPosition(this.clampPlacementX(p.x), this.clampPlacementY(p.y))
       this.placementGhostCircle.setVisible(true)
@@ -458,6 +461,7 @@ export class RunScene extends Phaser.Scene {
     defender.mp -= def.mpCost
     skill.cooldownTimer = def.cooldownSec
     if (def.effectKind === 'fireElemental') this.spawnFireElemental(x, y)
+    else if (def.effectKind === 'raiseSkeleton') this.spawnSkeleton(x, y)
     else if (def.effectKind === 'firestorm') this.spawnFirestorm(x, y)
     else this.spawnFireWall(x)
     this.cancelPlacement()
@@ -839,29 +843,39 @@ export class RunScene extends Phaser.Scene {
     if (view) view.container.setPosition(enemy.x, enemy.y)
   }
 
-  // ── Summons (Fire Elemental) ─────────────────────────────
+  // ── Summons (Fire Elemental / Skeleton) ──────────────────
   private spawnFireElemental(x: number, y: number) {
     const fe = UpgradeSystem.resolveFireElemental(gameState.upgrades.defenders.fireMage)
+    this.addSummon('fireElemental', '🌋', 0xea580c, x, y, fe)
+  }
+
+  private spawnSkeleton(x: number, y: number) {
+    const s = UpgradeSystem.resolveRaiseSkeleton(gameState.upgrades.defenders.necromancer)
+    this.addSummon('skeleton', '💀', 0x6b7280, x, y, s)
+  }
+
+  // Shared summon spawn/view — kind + emoji + body colour are the only differences.
+  private addSummon(kind: Summon['kind'], emoji: string, color: number, x: number, y: number, stats: SummonStats) {
     const summon: Summon = {
       id: `s${this.nextSummonId++}`,
-      kind: 'fireElemental',
+      kind,
       x, y,
-      hp: fe.hp, maxHp: fe.hp,
-      tauntRadius: fe.tauntRadius,
-      aoeRadius: fe.aoeRadius,
-      aoeDamage: fe.aoeDamage,
-      aoeInterval: fe.aoeInterval,
-      aoeTimer: fe.aoeInterval,
-      remainingSec: fe.durationSec,
+      hp: stats.hp, maxHp: stats.hp,
+      tauntRadius: stats.tauntRadius,
+      aoeRadius: stats.aoeRadius,
+      aoeDamage: stats.aoeDamage,
+      aoeInterval: stats.aoeInterval,
+      aoeTimer: stats.aoeInterval,
+      remainingSec: stats.durationSec,
     }
     this.summons.push(summon)
 
-    const aoeRing = this.add.circle(0, 0, summon.aoeRadius, 0xf97316, 0.08).setStrokeStyle(1, 0x7c2d12)
-    const body = this.add.circle(0, 0, 22, 0xea580c, 0.9).setStrokeStyle(2, 0xfdba74)
-    const emoji = this.add.text(0, 0, '🌋', { fontSize: '26px' }).setOrigin(0.5)
+    const aoeRing = this.add.circle(0, 0, summon.aoeRadius, color, 0.08).setStrokeStyle(1, 0x4b5563)
+    const body = this.add.circle(0, 0, 22, color, 0.9).setStrokeStyle(2, 0xfdba74)
+    const label = this.add.text(0, 0, emoji, { fontSize: '26px' }).setOrigin(0.5)
     const barBg = this.add.rectangle(0, -34, 44, 6, 0x374151).setOrigin(0.5)
     const barFill = this.add.rectangle(-22, -34, 44, 6, 0x22c55e).setOrigin(0, 0.5)
-    const container = this.add.container(summon.x, summon.y, [aoeRing, body, emoji, barBg, barFill])
+    const container = this.add.container(summon.x, summon.y, [aoeRing, body, label, barBg, barFill])
     this.summonViews.set(summon.id, { container, hpFill: barFill, barWidth: 44 })
   }
 
@@ -885,7 +899,7 @@ export class RunScene extends Phaser.Scene {
     this.summons = survivors
   }
 
-  // Fire Bash: AoE damage to every enemy around the elemental.
+  // AoE damage to every enemy around a summon (Fire Bash / skeleton swipe).
   private applyFireBash(summon: Summon) {
     let hits = 0
     for (const enemy of [...this.activeEnemies]) {
@@ -902,7 +916,10 @@ export class RunScene extends Phaser.Scene {
         }
       }
     }
-    if (hits > 0) this.log(`🌋 Fire Bash hits ${hits} for ${summon.aoeDamage}`)
+    if (hits > 0) {
+      const label = summon.kind === 'skeleton' ? '💀 Skeleton' : '🌋 Fire Bash'
+      this.log(`${label} hits ${hits} for ${summon.aoeDamage}`)
+    }
   }
 
   private updateSummonView(summon: Summon) {
