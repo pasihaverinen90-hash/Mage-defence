@@ -6,12 +6,12 @@ import { CombatSystem } from '../../systems/CombatSystem'
 import { RewardSystem } from '../../systems/RewardSystem'
 import { BALANCE } from '../../data/balance'
 import { FIRE_MAGE, DEFENDER_SLOTS } from '../../data/defenders'
-import { FIRE_MAGE_SKILLS, LIGHTNING_MAGE_SKILLS, ARCHER_SKILLS, NECROMANCER_SKILLS } from '../../data/skills'
+import { FIRE_MAGE_SKILLS, ICE_MAGE_SKILLS, LIGHTNING_MAGE_SKILLS, ARCHER_SKILLS, NECROMANCER_SKILLS } from '../../data/skills'
 import { RECRUITS } from '../../data/recruits'
 import type {
   CastleState, EnemyDefinition, RunEnemy, DefenderRuntimeState, DefenderDefinition,
   DefenderSlotId, DefenderBasicStats, Projectile, SkillRuntimeState, SkillDefinition,
-  FieldEffect, Summon, SummonStats, UpgradeState, ChainLightningStats, PiercingShotStats,
+  FieldEffect, Summon, SummonStats, UpgradeState, ChainLightningStats, PiercingShotStats, BlizzardStats,
 } from '../../types/game'
 
 const W = 800
@@ -68,6 +68,17 @@ export class RunScene extends Phaser.Scene {
   private summons: Summon[] = []
   private summonViews: Map<string, SummonView> = new Map()
   private nextSummonId = 0
+  // Battlefield-wide Blizzard (Ice Mage). At most one is active at a time.
+  private blizzard = {
+    active: false,
+    remainingSec: 0,
+    slowFactor: 1,
+    tickDamage: 0,
+    tickInterval: 0.5,
+    tickTimer: 0,
+  }
+  private blizzardOverlay: Phaser.GameObjects.Rectangle | null = null
+  private blizzardFlakes: Phaser.GameObjects.Text[] = []
   private skillButtonEntries: {
     btn: Phaser.GameObjects.Text
     defender: DefenderRuntimeState
@@ -119,6 +130,9 @@ export class RunScene extends Phaser.Scene {
     this.summons = []
     this.summonViews.clear()
     this.nextSummonId = 0
+    this.blizzard.active = false
+    this.blizzardOverlay = null
+    this.blizzardFlakes = []
     this.skillButtonEntries = []
     this.placementSkill = null
     this.placementDefender = null
@@ -188,6 +202,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private recruitSkillDefs(recruitId: string): SkillDefinition[] {
+    if (recruitId === 'iceMage') return ICE_MAGE_SKILLS
     if (recruitId === 'lightningMage') return LIGHTNING_MAGE_SKILLS
     if (recruitId === 'archer') return ARCHER_SKILLS
     if (recruitId === 'necromancer') return NECROMANCER_SKILLS
@@ -521,6 +536,12 @@ export class RunScene extends Phaser.Scene {
         this.applyPiercingShot(defender, first, cfg)
         break
       }
+      case 'blizzard': {
+        const cfg = UpgradeSystem.resolveBlizzard(gameState.upgrades.defenders.iceMage)
+        skill.cooldownTimer = cfg.cooldownSec
+        this.startBlizzard(cfg)
+        break
+      }
       default:
         return false
     }
@@ -731,6 +752,7 @@ export class RunScene extends Phaser.Scene {
     this.updateFieldEffects(dt)
     this.updateSummons(dt)
     this.updateDefenders(dt)
+    this.updateBlizzard(dt)
     this.updateEnemies(dt)
     this.updateProjectiles(dt)
   }
@@ -828,23 +850,26 @@ export class RunScene extends Phaser.Scene {
     if (target.hp <= 0) this.killEnemy(target)
   }
 
-  // Slow an enemy to a fraction of its original speed for a duration. Always
-  // restores from baseSpeed, so reapplying never compounds or sticks.
+  // Record a per-hit slow (Ice Shard). Speed itself is recomputed each frame in
+  // updateEnemies, so slows never compound and always restore cleanly.
   private applySlow(enemy: RunEnemy, factor: number, duration: number) {
-    enemy.speed = enemy.baseSpeed * factor
+    enemy.slowFactor = factor
     enemy.slowTimer = duration
   }
 
   private updateEnemies(dt: number) {
+    const blizzardFactor = this.blizzard.active ? this.blizzard.slowFactor : 1
     for (const enemy of this.activeEnemies) {
-      // Tick any active slow and restore base speed when it expires.
+      // Expire the per-hit slow, then recompute speed from baseSpeed using the
+      // STRONGEST active slow (Ice Shard vs Blizzard) — no stacking, clean restore.
       if (enemy.slowTimer > 0) {
         enemy.slowTimer -= dt
         if (enemy.slowTimer <= 0) {
           enemy.slowTimer = 0
-          enemy.speed = enemy.baseSpeed
+          enemy.slowFactor = 1
         }
       }
+      enemy.speed = enemy.baseSpeed * Math.min(enemy.slowFactor, blizzardFactor)
 
       // Taunt: a Fire Elemental in range pulls the enemy off the castle.
       const taunt = this.tauntTargetFor(enemy)
@@ -1019,6 +1044,79 @@ export class RunScene extends Phaser.Scene {
     for (const view of this.summonViews.values()) view.container.destroy()
     this.summonViews.clear()
     this.summons = []
+  }
+
+  // ── Blizzard (Ice Mage, battlefield-wide) ────────────────
+  private startBlizzard(cfg: BlizzardStats) {
+    this.clearBlizzardVisuals() // refresh cleanly if one is somehow already active
+    this.blizzard.active = true
+    this.blizzard.remainingSec = cfg.durationSec
+    this.blizzard.slowFactor = cfg.slowFactor
+    this.blizzard.tickDamage = cfg.tickDamage
+    this.blizzard.tickInterval = cfg.tickInterval
+    this.blizzard.tickTimer = cfg.tickInterval
+
+    // Subtle icy tint + falling snowflakes across the battlefield.
+    this.blizzardOverlay = this.add
+      .rectangle(20, FLOOR_TOP, 760, FLOOR_BOTTOM - FLOOR_TOP, 0xbfdbfe, 0.1)
+      .setOrigin(0, 0).setDepth(45)
+    for (let i = 0; i < 16; i++) {
+      const flake = this.add.text(
+        Phaser.Math.Between(30, 760),
+        Phaser.Math.Between(FLOOR_TOP, FLOOR_BOTTOM),
+        '❄️', { fontSize: '15px' },
+      ).setOrigin(0.5).setAlpha(0.5).setDepth(46)
+      this.blizzardFlakes.push(flake)
+    }
+    this.log('❄️ Blizzard sweeps the field!')
+  }
+
+  private updateBlizzard(dt: number) {
+    if (!this.blizzard.active) return
+    this.blizzard.remainingSec -= dt
+
+    // Drift snowflakes downward (dt-scaled), wrapping to the top.
+    for (const flake of this.blizzardFlakes) {
+      flake.y += 90 * dt
+      if (flake.y > FLOOR_BOTTOM) {
+        flake.y = FLOOR_TOP
+        flake.x = Phaser.Math.Between(30, 760)
+      }
+    }
+
+    // Light damage-over-time (control skill — low damage).
+    if (this.blizzard.tickDamage > 0) {
+      this.blizzard.tickTimer -= dt
+      if (this.blizzard.tickTimer <= 0) {
+        this.blizzard.tickTimer = this.blizzard.tickInterval
+        this.applyBlizzardTick()
+      }
+    }
+
+    if (this.blizzard.remainingSec <= 0) this.endBlizzard()
+  }
+
+  private applyBlizzardTick() {
+    const dmg = this.blizzard.tickDamage
+    for (const enemy of [...this.activeEnemies]) {
+      enemy.hp = Math.max(0, enemy.hp - dmg)
+      if (enemy.hp <= 0) this.killEnemy(enemy)
+      else this.updateEnemyView(enemy)
+    }
+  }
+
+  private endBlizzard() {
+    this.blizzard.active = false // enemy speeds restore via the recompute next frame
+    this.clearBlizzardVisuals()
+  }
+
+  private clearBlizzardVisuals() {
+    if (this.blizzardOverlay) {
+      this.blizzardOverlay.destroy()
+      this.blizzardOverlay = null
+    }
+    for (const flake of this.blizzardFlakes) flake.destroy()
+    this.blizzardFlakes = []
   }
 
   // Centralised castle-hit handling shared by melee strikes and projectile
@@ -1342,6 +1440,7 @@ export class RunScene extends Phaser.Scene {
     this.clearProjectiles()
     this.clearFieldEffects()
     this.clearSummons()
+    this.endBlizzard()
 
     const reward = RewardSystem.calculateBlueMana(
       this.run.highestWaveThisRun,

@@ -2,6 +2,7 @@ import type {
   CastleStats,
   FireMageStats,
   DefenderBasicStats,
+  BlizzardStats,
   FireWallStats,
   FirestormStats,
   FireElementalStats,
@@ -78,6 +79,22 @@ export const UpgradeSystem = {
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
       maxMp: b.baseMaxMp + levels.maxMp * u.iceMageMaxMpPerLevel,
       mpRegen: b.baseMpRegen + levels.mpRegen * u.iceMageMpRegenPerLevel,
+    }
+  },
+
+  resolveBlizzard(levels: IceMageUpgradeLevels): BlizzardStats {
+    const b = BALANCE.iceMage.blizzard
+    const u = BALANCE.upgrades
+    const slowPercent = Math.min(
+      b.maxSlowPercent,
+      b.baseSlowPercent + levels.blizzardSlow * u.blizzardSlowPerLevel,
+    )
+    return {
+      durationSec: b.baseDurationSec + levels.blizzardDuration * u.blizzardDurationPerLevel,
+      slowFactor: 1 - slowPercent,
+      tickDamage: b.baseTickDamage + levels.blizzardDamage * u.blizzardDamagePerLevel,
+      tickInterval: b.tickInterval,
+      cooldownSec: Math.max(b.minCooldownSec, b.cooldownSec - levels.blizzardCooldown * u.blizzardCooldownPerLevel),
     }
   },
 

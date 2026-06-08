@@ -47,6 +47,17 @@ export const BALANCE = {
     baseMpRegen: 4, // MP/sec
     slowFactor: 0.6, // Ice Shard slows the target to 60% speed
     slowDurationSec: 1.5,
+    blizzard: {
+      mpCost: 35,
+      cooldownSec: 14,
+      minCooldownSec: 6,
+      baseDurationSec: 5,
+      baseSlowPercent: 0.25, // 25% slow → factor 0.75
+      maxSlowPercent: 0.5, // capped so it never freezes the field
+      baseTickDamage: 2, // light DoT (control skill, not burst)
+      tickInterval: 0.5,
+      range: 700, // auto-cast when enemy pressure is within this distance
+    },
   },
   lightningMage: {
     baseDamage: 6, // lower than Fire Mage but faster
@@ -121,6 +132,10 @@ export const BALANCE = {
     iceShardCastSpeedPerLevel: 0.08,   // -8% cast interval per level
     iceMageMaxMpPerLevel: 20,          // +20 max MP per level
     iceMageMpRegenPerLevel: 1,         // +1 MP/sec per level
+    blizzardDamagePerLevel: 1,         // +1 Blizzard tick damage per level
+    blizzardDurationPerLevel: 0.5,     // +0.5s Blizzard duration per level
+    blizzardSlowPerLevel: 0.03,        // +3% Blizzard slow per level (capped)
+    blizzardCooldownPerLevel: 1,       // -1s Blizzard cooldown per level
     lightningBoltDamagePerLevel: 0.15,    // +15% Lightning Bolt damage per level
     lightningBoltCastSpeedPerLevel: 0.08, // -8% cast interval per level
     lightningMageMaxMpPerLevel: 20,       // +20 max MP per level

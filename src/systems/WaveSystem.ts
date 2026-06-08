@@ -60,6 +60,7 @@ export const WaveSystem = {
       y,
       speed: def.movementSpeed,
       baseSpeed: def.movementSpeed,
+      slowFactor: 1,
       slowTimer: 0,
       stopX: BALANCE.arena.meleeX + def.stopDistanceFromWall,
       attacking: false,

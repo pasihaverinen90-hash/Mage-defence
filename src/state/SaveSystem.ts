@@ -34,6 +34,10 @@ export function defaultSave(): SaveData {
           iceShardCastSpeed: 0,
           maxMp: 0,
           mpRegen: 0,
+          blizzardDamage: 0,
+          blizzardDuration: 0,
+          blizzardSlow: 0,
+          blizzardCooldown: 0,
         },
         lightningMage: {
           lightningBoltDamage: 0,

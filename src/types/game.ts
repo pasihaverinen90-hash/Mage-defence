@@ -55,7 +55,7 @@ export interface SkillDefinition {
   mpCost: number
   cooldownSec: number
   targeting: 'pointX' | 'area' | 'none' // pointX/area = placement; none = instant
-  effectKind: 'fireWall' | 'firestorm' | 'fireElemental' | 'chainLightning' | 'piercingShot' | 'raiseSkeleton'
+  effectKind: 'fireWall' | 'firestorm' | 'fireElemental' | 'chainLightning' | 'piercingShot' | 'raiseSkeleton' | 'blizzard'
   range?: number // auto-cast range from the defender (recruit skills); undefined = manual only
 }
 
@@ -94,6 +94,15 @@ export interface ChainLightningStats {
 export interface PiercingShotStats {
   damage: number
   width: number // vertical band thickness around the target's Y
+  cooldownSec: number
+}
+
+// Resolved (per-cast) Blizzard parameters from upgrade levels.
+export interface BlizzardStats {
+  durationSec: number
+  slowFactor: number // 0.75 = enemies move at 75% speed while active
+  tickDamage: number
+  tickInterval: number
   cooldownSec: number
 }
 
@@ -196,9 +205,10 @@ export interface RunEnemy {
   attackTimer: number
   x: number
   y: number
-  speed: number // current speed (may be reduced while slowed)
-  baseSpeed: number // original speed, restored when a slow expires
-  slowTimer: number // seconds of slow remaining; 0 = not slowed
+  speed: number // current speed (recomputed each frame from baseSpeed + slows)
+  baseSpeed: number // original speed; speed is always derived from this
+  slowFactor: number // per-hit slow factor (Ice Shard); 1 = none
+  slowTimer: number // seconds of per-hit slow remaining; 0 = not slowed
   stopX: number // x position where this enemy stops to attack
   attacking: boolean // reached its stop position and is attacking the castle
 }
@@ -265,6 +275,10 @@ export interface IceMageUpgradeLevels {
   iceShardCastSpeed: number
   maxMp: number
   mpRegen: number
+  blizzardDamage: number
+  blizzardDuration: number
+  blizzardSlow: number
+  blizzardCooldown: number
 }
 
 export interface LightningMageUpgradeLevels {

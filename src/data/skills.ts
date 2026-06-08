@@ -73,3 +73,16 @@ export const RAISE_SKELETON: SkillDefinition = {
 }
 
 export const NECROMANCER_SKILLS: SkillDefinition[] = [RAISE_SKELETON]
+
+export const BLIZZARD: SkillDefinition = {
+  id: 'blizzard',
+  name: 'Blizzard',
+  emoji: '❄️',
+  mpCost: BALANCE.iceMage.blizzard.mpCost,
+  cooldownSec: BALANCE.iceMage.blizzard.cooldownSec,
+  targeting: 'none', // auto, battlefield-wide — no placement, no single target
+  effectKind: 'blizzard',
+  range: BALANCE.iceMage.blizzard.range,
+}
+
+export const ICE_MAGE_SKILLS: SkillDefinition[] = [BLIZZARD]

@@ -80,6 +80,26 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Ice MP Regen', description: '+1 MP/sec per level', emoji: '🌀',
     costBase: 16, costMultiplier: 1.6, maxLevel: 30,
   },
+  blizzardSlow: {
+    id: 'blizzardSlow', category: 'iceMage', field: 'blizzardSlow',
+    name: 'Blizzard Slow', description: '+3% Blizzard slow per level', emoji: '❄️',
+    costBase: 18, costMultiplier: 1.6, maxLevel: 8,
+  },
+  blizzardDuration: {
+    id: 'blizzardDuration', category: 'iceMage', field: 'blizzardDuration',
+    name: 'Blizzard Time', description: '+0.5s Blizzard duration per level', emoji: '⏳',
+    costBase: 18, costMultiplier: 1.6, maxLevel: 20,
+  },
+  blizzardDamage: {
+    id: 'blizzardDamage', category: 'iceMage', field: 'blizzardDamage',
+    name: 'Blizzard Dmg', description: '+1 Blizzard tick damage per level', emoji: '❄️',
+    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
+  },
+  blizzardCooldown: {
+    id: 'blizzardCooldown', category: 'iceMage', field: 'blizzardCooldown',
+    name: 'Blizzard CD', description: '-1s Blizzard cooldown per level', emoji: '⌛',
+    costBase: 30, costMultiplier: 1.8, maxLevel: 4,
+  },
   lightningBoltDamage: {
     id: 'lightningBoltDamage', category: 'lightningMage', field: 'lightningBoltDamage',
     name: 'Lightning Dmg', description: '+15% Lightning Bolt damage per level', emoji: '⚡',
@@ -201,7 +221,7 @@ export interface UpgradeSection {
 export const UPGRADE_SECTIONS: UpgradeSection[] = [
   { label: '🏰 Castle', upgradeIds: ['castleMaxHp', 'castleArmor', 'castleStartingShield', 'castleRegen', 'castleWaveRepair', 'castleSpikes'] },
   { label: '🧙 Fire Mage', upgradeIds: ['fireballDamage', 'fireballCastSpeed', 'fireMageMaxMp', 'fireMageMpRegen'] },
-  { label: '🥶 Ice Mage', upgradeIds: ['iceShardDamage', 'iceShardCastSpeed', 'iceMageMaxMp', 'iceMageMpRegen'], requiresRecruit: 'iceMage' },
+  { label: '🥶 Ice Mage', upgradeIds: ['iceShardDamage', 'iceShardCastSpeed', 'iceMageMaxMp', 'iceMageMpRegen', 'blizzardSlow', 'blizzardDuration', 'blizzardDamage', 'blizzardCooldown'], requiresRecruit: 'iceMage' },
   { label: '⚡ Lightning Mage', upgradeIds: ['lightningBoltDamage', 'lightningBoltCastSpeed', 'lightningMageMaxMp', 'lightningMageMpRegen', 'chainLightningDamage', 'chainLightningJumps', 'chainLightningCooldown'], requiresRecruit: 'lightningMage' },
   { label: '🏹 Archer', upgradeIds: ['arrowDamage', 'arrowAttackSpeed', 'archerMaxMp', 'archerMpRegen', 'piercingShotDamage', 'piercingShotWidth', 'piercingShotCooldown'], requiresRecruit: 'archer' },
   { label: '☠️ Necromancer', upgradeIds: ['shadowBoltDamage', 'shadowBoltCastSpeed', 'necromancerMaxMp', 'necromancerMpRegen', 'raiseSkeletonHp', 'raiseSkeletonDuration', 'raiseSkeletonDamage', 'raiseSkeletonCooldown'], requiresRecruit: 'necromancer' },
