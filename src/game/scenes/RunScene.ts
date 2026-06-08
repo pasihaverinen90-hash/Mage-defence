@@ -72,6 +72,7 @@ export class RunScene extends Phaser.Scene {
     btn: Phaser.GameObjects.Text
     defender: DefenderRuntimeState
     skill: SkillRuntimeState
+    hotkey?: number // 1/2/3 for Fire Mage skills; undefined for auto recruit skills
   }[] = []
   private placementSkill: SkillRuntimeState | null = null
   private placementDefender: DefenderRuntimeState | null = null
@@ -251,19 +252,24 @@ export class RunScene extends Phaser.Scene {
     endBtn.on('pointerover', () => endBtn.setAlpha(0.8))
     endBtn.on('pointerout', () => endBtn.setAlpha(1))
 
-    // Compact skill buttons (emoji + MP cost) for every defender's skills.
-    // Up to 5 fit (Fire Mage's 3 + two skilled recruits) before the speed button.
-    let sx = 248
+    // Compact skill buttons for every defender's skills (up to 5: Fire Mage's 3
+    // manual skills + two skilled recruits' auto skills). Fire Mage buttons are
+    // clickable + hotkeyed (1/2/3); recruit buttons are auto-only status badges.
+    let sx = 250
     for (const defender of this.run.defenders) {
-      for (const skill of defender.skills) {
+      defender.skills.forEach((skill, i) => {
+        const isHero = defender.slotId === 'hero'
         const btn = this.add.text(sx, 70, '', {
-          fontSize: '12px', color: '#fbbf24', fontFamily: 'monospace',
-          backgroundColor: '#2a1505', padding: { x: 5, y: 5 },
-        }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true })
-        btn.on('pointerdown', () => this.onSkillButton(defender, skill))
-        this.skillButtonEntries.push({ btn, defender, skill })
+          fontSize: '11px', color: '#fbbf24', fontFamily: 'monospace',
+          backgroundColor: '#2a1505', padding: { x: 4, y: 5 },
+        }).setOrigin(0, 0.5)
+        if (isHero) {
+          btn.setInteractive({ useHandCursor: true })
+          btn.on('pointerdown', () => this.onSkillButton(defender, skill))
+        }
+        this.skillButtonEntries.push({ btn, defender, skill, hotkey: isHero ? i + 1 : undefined })
         sx += 52
-      }
+      })
     }
 
     // Translucent placement previews (rect for Fire Wall, circle for Firestorm).
@@ -386,6 +392,19 @@ export class RunScene extends Phaser.Scene {
     })
 
     this.input.keyboard?.on('keydown-ESC', () => this.cancelPlacement())
+
+    // Fire Mage manual-skill hotkeys (1/2/3) — same path as clicking the buttons.
+    this.input.keyboard?.on('keydown-ONE', () => this.activateHeroSkill(0))
+    this.input.keyboard?.on('keydown-TWO', () => this.activateHeroSkill(1))
+    this.input.keyboard?.on('keydown-THREE', () => this.activateHeroSkill(2))
+  }
+
+  // Trigger a Fire Mage skill by hotkey index, reusing the click path exactly.
+  private activateHeroSkill(index: number) {
+    const hero = this.run.defenders[0]
+    if (!hero || hero.slotId !== 'hero') return
+    const skill = hero.skills[index]
+    if (skill) this.onSkillButton(hero, skill)
   }
 
   private clampPlacementX(x: number): number {
@@ -405,7 +424,7 @@ export class RunScene extends Phaser.Scene {
       this.cancelPlacement()
       return
     }
-    if (skill.cooldownTimer > 0 || defender.mp < skill.definition.mpCost) return
+    if (!this.skillReady(defender, skill)) return
     if (skill.definition.targeting === 'none') {
       this.castInstantSkill(defender, skill)
     } else {
@@ -414,6 +433,9 @@ export class RunScene extends Phaser.Scene {
   }
 
   private enterPlacement(defender: DefenderRuntimeState, skill: SkillRuntimeState) {
+    // Hide both previews first so switching skills never leaves a stale ghost.
+    this.placementGhost.setVisible(false)
+    this.placementGhostCircle.setVisible(false)
     this.placementSkill = skill
     this.placementDefender = defender
     const levels = gameState.upgrades.defenders.fireMage
@@ -449,48 +471,97 @@ export class RunScene extends Phaser.Scene {
     this.updateSkillButtons()
   }
 
+  // Player placed a manual (Fire Mage) skill on the battlefield.
   private placeSkill(x: number, y: number) {
     const defender = this.placementDefender
     const skill = this.placementSkill
     if (!defender || !skill) return
-    const def = skill.definition
-    if (skill.cooldownTimer > 0 || defender.mp < def.mpCost) {
+    if (!this.skillReady(defender, skill)) {
       this.cancelPlacement()
       return
     }
-    defender.mp -= def.mpCost
-    skill.cooldownTimer = def.cooldownSec
-    if (def.effectKind === 'fireElemental') this.spawnFireElemental(x, y)
-    else if (def.effectKind === 'raiseSkeleton') this.spawnSkeleton(x, y)
-    else if (def.effectKind === 'firestorm') this.spawnFirestorm(x, y)
-    else this.spawnFireWall(x)
+    this.fireSkill(defender, skill, x, y)
     this.cancelPlacement()
-    this.updateDefenderUI()
-    this.updateSkillButtons()
-    this.log(`${def.emoji} ${def.name} placed (-${def.mpCost} MP)`)
+    this.log(`${skill.definition.emoji} ${skill.definition.name} (-${skill.definition.mpCost} MP)`)
   }
 
-  // Instant (no-placement) skills fire immediately on the closest enemy.
+  // Manual instant skill (button/hotkey) — fires on the closest enemy.
   private castInstantSkill(defender: DefenderRuntimeState, skill: SkillRuntimeState) {
-    const first = this.getClosestEnemy()
-    if (!first) return // nothing to hit — don't spend MP
+    this.fireSkill(defender, skill, 0, 0)
+  }
 
-    const kind = skill.definition.effectKind
-    if (kind === 'chainLightning') {
-      const cfg = UpgradeSystem.resolveChainLightning(gameState.upgrades.defenders.lightningMage)
-      skill.cooldownTimer = cfg.cooldownSec
-      this.applyChainLightning(defender, first, cfg)
-    } else if (kind === 'piercingShot') {
-      const cfg = UpgradeSystem.resolvePiercingShot(gameState.upgrades.defenders.archer)
-      skill.cooldownTimer = cfg.cooldownSec
-      this.applyPiercingShot(defender, first, cfg)
-    } else {
-      return // unknown instant skill — don't spend MP
+  private skillReady(defender: DefenderRuntimeState, skill: SkillRuntimeState): boolean {
+    return skill.cooldownTimer <= 0 && defender.mp >= skill.definition.mpCost
+  }
+
+  // Single execution path shared by manual clicks, hotkeys and recruit auto-cast.
+  // Spends MP + starts cooldown + applies the effect. (x,y used by placement
+  // skills; instant skills aim at the closest enemy.) Returns false without
+  // spending if an instant skill has no target.
+  private fireSkill(defender: DefenderRuntimeState, skill: SkillRuntimeState, x: number, y: number): boolean {
+    const def = skill.definition
+    switch (def.effectKind) {
+      case 'fireWall': skill.cooldownTimer = def.cooldownSec; this.spawnFireWall(x); break
+      case 'firestorm': skill.cooldownTimer = def.cooldownSec; this.spawnFirestorm(x, y); break
+      case 'fireElemental': skill.cooldownTimer = def.cooldownSec; this.spawnFireElemental(x, y); break
+      case 'raiseSkeleton': skill.cooldownTimer = def.cooldownSec; this.spawnSkeleton(x, y); break
+      case 'chainLightning': {
+        const first = this.getClosestEnemy()
+        if (!first) return false
+        const cfg = UpgradeSystem.resolveChainLightning(gameState.upgrades.defenders.lightningMage)
+        skill.cooldownTimer = cfg.cooldownSec
+        this.applyChainLightning(defender, first, cfg)
+        break
+      }
+      case 'piercingShot': {
+        const first = this.getClosestEnemy()
+        if (!first) return false
+        const cfg = UpgradeSystem.resolvePiercingShot(gameState.upgrades.defenders.archer)
+        skill.cooldownTimer = cfg.cooldownSec
+        this.applyPiercingShot(defender, first, cfg)
+        break
+      }
+      default:
+        return false
     }
-
-    defender.mp -= skill.definition.mpCost
+    defender.mp -= def.mpCost
     this.updateDefenderUI()
     this.updateSkillButtons()
+    return true
+  }
+
+  // ── Recruit skill auto-cast (never the hero / Fire Mage) ─
+  private tryAutoCastSkills(defender: DefenderRuntimeState) {
+    for (const skill of defender.skills) {
+      if (this.tryAutoCast(defender, skill)) break // at most one cast per defender per frame
+    }
+  }
+
+  private tryAutoCast(defender: DefenderRuntimeState, skill: SkillRuntimeState): boolean {
+    if (!this.skillReady(defender, skill)) return false
+    const range = skill.definition.range ?? 700
+    if (!this.enemyInRange(defender, range)) return false
+    if (skill.definition.targeting === 'none') return this.fireSkill(defender, skill, 0, 0)
+    const pos = this.autoSummonPosition() // placement recruit skill (Raise Skeleton)
+    return this.fireSkill(defender, skill, pos.x, pos.y)
+  }
+
+  private enemyInRange(defender: DefenderRuntimeState, range: number): boolean {
+    const r2 = range * range
+    for (const e of this.activeEnemies) {
+      const dx = e.x - defender.x
+      const dy = e.y - defender.y
+      if (dx * dx + dy * dy <= r2) return true
+    }
+    return false
+  }
+
+  // Drop summons on the front line (the closest enemy to the castle), clamped to
+  // the battlefield so nothing spawns behind the wall or off-screen.
+  private autoSummonPosition(): { x: number; y: number } {
+    const front = this.getClosestEnemy()
+    if (!front) return { x: MELEE_X + 60, y: LANE_Y }
+    return { x: this.clampPlacementX(front.x), y: this.clampPlacementY(front.y) }
   }
 
   // Piercing Shot: a horizontal arrow that hits every enemy within a vertical
@@ -585,19 +656,24 @@ export class RunScene extends Phaser.Scene {
   }
 
   private updateSkillButtons() {
-    for (const { btn, defender, skill } of this.skillButtonEntries) {
+    for (const { btn, defender, skill, hotkey } of this.skillButtonEntries) {
       const def = skill.definition
+      const hk = hotkey ? `${hotkey} ` : '' // Fire Mage hotkey hint
+      const isRecruit = defender.slotId !== 'hero'
       if (skill.cooldownTimer > 0) {
-        btn.setText(`${def.emoji} ${Math.ceil(skill.cooldownTimer)}`)
+        btn.setText(`${hk}${def.emoji}${Math.ceil(skill.cooldownTimer)}`)
         btn.setColor('#6b7280')
       } else if (defender.mp < def.mpCost) {
-        btn.setText(`${def.emoji} ${def.mpCost}`)
+        btn.setText(`${hk}${def.emoji}${def.mpCost}`)
         btn.setColor('#6b7280')
       } else if (this.placementSkill === skill) {
-        btn.setText(`${def.emoji} …`)
+        btn.setText(`${hk}${def.emoji}…`)
         btn.setColor('#fde68a')
+      } else if (isRecruit) {
+        btn.setText(`${def.emoji}⟳`) // auto-ready (recruit skills fire automatically)
+        btn.setColor('#34d399')
       } else {
-        btn.setText(`${def.emoji} ${def.mpCost}`)
+        btn.setText(`${hk}${def.emoji}${def.mpCost}`)
         btn.setColor('#fbbf24')
       }
     }
@@ -720,6 +796,8 @@ export class RunScene extends Phaser.Scene {
         if (skill.cooldownTimer > 0) skill.cooldownTimer = Math.max(0, skill.cooldownTimer - dt)
       }
       this.updateDefenderBasicAttack(d, dt)
+      // Recruits cast their skills automatically; the Fire Mage stays manual.
+      if (d.slotId !== 'hero') this.tryAutoCastSkills(d)
     }
     this.updateDefenderUI()
     this.updateSkillButtons()

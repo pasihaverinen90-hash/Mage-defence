@@ -61,6 +61,7 @@ export const BALANCE = {
       baseJumps: 2, // extra targets beyond the first (hits up to 3)
       jumpRadius: 90,
       falloff: 0.6, // each jump deals 60% of the previous hit
+      range: 700, // auto-cast when an enemy is within this distance
     },
   },
   archer: {
@@ -74,6 +75,7 @@ export const BALANCE = {
       minCooldownSec: 3,
       baseDamage: 20,
       baseWidth: 40, // vertical band thickness (hits enemies near the target's Y)
+      range: 760, // auto-cast when an enemy is within this distance
     },
   },
   necromancer: {
@@ -91,6 +93,7 @@ export const BALANCE = {
       aoeInterval: 1.0,
       tauntRadius: 90,
       aoeRadius: 55,
+      range: 700, // auto-cast when enemy pressure is within this distance
     },
   },
   upgrades: {

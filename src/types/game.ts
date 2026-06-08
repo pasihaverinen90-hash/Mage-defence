@@ -56,6 +56,7 @@ export interface SkillDefinition {
   cooldownSec: number
   targeting: 'pointX' | 'area' | 'none' // pointX/area = placement; none = instant
   effectKind: 'fireWall' | 'firestorm' | 'fireElemental' | 'chainLightning' | 'piercingShot' | 'raiseSkeleton'
+  range?: number // auto-cast range from the defender (recruit skills); undefined = manual only
 }
 
 export interface SkillRuntimeState {
