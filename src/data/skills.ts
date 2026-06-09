@@ -39,7 +39,7 @@ export const CHAIN_LIGHTNING: SkillDefinition = {
   id: 'chainLightning',
   name: 'Chain Lightning',
   emoji: '⚡',
-  mpCost: BALANCE.lightningMage.chainLightning.mpCost,
+  mpCost: 0, // recruits have no MP — gated by cooldown + target only
   cooldownSec: BALANCE.lightningMage.chainLightning.cooldownSec,
   targeting: 'none', // instant — auto-targets the closest enemy
   effectKind: 'chainLightning',
@@ -52,7 +52,7 @@ export const PIERCING_SHOT: SkillDefinition = {
   id: 'piercingShot',
   name: 'Piercing Shot',
   emoji: '🏹',
-  mpCost: BALANCE.archer.piercingShot.mpCost,
+  mpCost: 0, // recruits have no MP — gated by cooldown + target only
   cooldownSec: BALANCE.archer.piercingShot.cooldownSec,
   targeting: 'none', // instant — fires through the closest enemy's lane
   effectKind: 'piercingShot',
@@ -65,7 +65,7 @@ export const RAISE_SKELETON: SkillDefinition = {
   id: 'raiseSkeleton',
   name: 'Raise Skeleton',
   emoji: '💀',
-  mpCost: BALANCE.necromancer.raiseSkeleton.mpCost,
+  mpCost: 0, // recruits have no MP — gated by cooldown + enemy pressure only
   cooldownSec: BALANCE.necromancer.raiseSkeleton.cooldownSec,
   targeting: 'area', // placed on the battlefield like Fire Elemental
   effectKind: 'raiseSkeleton',
@@ -78,7 +78,7 @@ export const BLIZZARD: SkillDefinition = {
   id: 'blizzard',
   name: 'Blizzard',
   emoji: '❄️',
-  mpCost: BALANCE.iceMage.blizzard.mpCost,
+  mpCost: 0, // recruits have no MP — gated by cooldown + enemy pressure only
   cooldownSec: BALANCE.iceMage.blizzard.cooldownSec,
   targeting: 'none', // auto, battlefield-wide — no placement, no single target
   effectKind: 'blizzard',

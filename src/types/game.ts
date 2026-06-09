@@ -114,6 +114,7 @@ export interface SummonStats {
   aoeRadius: number
   tauntRadius: number
   aoeInterval: number
+  cooldownSec: number // recast cooldown for the summoning skill
 }
 export type FireElementalStats = SummonStats
 
@@ -270,46 +271,31 @@ export interface FireMageUpgradeLevels {
   fireElementalHealth: number
 }
 
+// Recruits have no MP. Each has its basic-attack upgrades plus ONE skill-mastery
+// upgrade that improves cooldown + the skill's main effect together. (Old MP /
+// per-skill fields were folded into the mastery level by the v2→v3 migration.)
 export interface IceMageUpgradeLevels {
   iceShardDamage: number
   iceShardCastSpeed: number
-  maxMp: number
-  mpRegen: number
-  blizzardDamage: number
-  blizzardDuration: number
-  blizzardSlow: number
-  blizzardCooldown: number
+  blizzardMastery: number
 }
 
 export interface LightningMageUpgradeLevels {
   lightningBoltDamage: number
   lightningBoltCastSpeed: number
-  maxMp: number
-  mpRegen: number
-  chainLightningDamage: number
-  chainLightningJumps: number
-  chainLightningCooldown: number
+  chainLightningMastery: number
 }
 
 export interface ArcherUpgradeLevels {
   arrowDamage: number
   arrowAttackSpeed: number
-  maxMp: number
-  mpRegen: number
-  piercingShotDamage: number
-  piercingShotWidth: number
-  piercingShotCooldown: number
+  piercingShotMastery: number
 }
 
 export interface NecromancerUpgradeLevels {
   shadowBoltDamage: number
   shadowBoltCastSpeed: number
-  maxMp: number
-  mpRegen: number
-  raiseSkeletonHp: number
-  raiseSkeletonDuration: number
-  raiseSkeletonDamage: number
-  raiseSkeletonCooldown: number
+  raiseSkeletonMastery: number
 }
 
 export interface UpgradeState {

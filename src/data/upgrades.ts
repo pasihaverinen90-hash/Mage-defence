@@ -70,35 +70,10 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Ice Cast Speed', description: '-8% cast interval per level', emoji: '⚡',
     costBase: 12, costMultiplier: 1.65, maxLevel: 10,
   },
-  iceMageMaxMp: {
-    id: 'iceMageMaxMp', category: 'iceMage', field: 'maxMp',
-    name: 'Ice Max MP', description: '+20 max MP per level', emoji: '🔷',
-    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
-  },
-  iceMageMpRegen: {
-    id: 'iceMageMpRegen', category: 'iceMage', field: 'mpRegen',
-    name: 'Ice MP Regen', description: '+1 MP/sec per level', emoji: '🌀',
-    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
-  },
-  blizzardSlow: {
-    id: 'blizzardSlow', category: 'iceMage', field: 'blizzardSlow',
-    name: 'Blizzard Slow', description: '+3% Blizzard slow per level', emoji: '❄️',
-    costBase: 18, costMultiplier: 1.6, maxLevel: 8,
-  },
-  blizzardDuration: {
-    id: 'blizzardDuration', category: 'iceMage', field: 'blizzardDuration',
-    name: 'Blizzard Time', description: '+0.5s Blizzard duration per level', emoji: '⏳',
-    costBase: 18, costMultiplier: 1.6, maxLevel: 20,
-  },
-  blizzardDamage: {
-    id: 'blizzardDamage', category: 'iceMage', field: 'blizzardDamage',
-    name: 'Blizzard Dmg', description: '+1 Blizzard tick damage per level', emoji: '❄️',
-    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
-  },
-  blizzardCooldown: {
-    id: 'blizzardCooldown', category: 'iceMage', field: 'blizzardCooldown',
-    name: 'Blizzard CD', description: '-1s Blizzard cooldown per level', emoji: '⌛',
-    costBase: 30, costMultiplier: 1.8, maxLevel: 4,
+  blizzardMastery: {
+    id: 'blizzardMastery', category: 'iceMage', field: 'blizzardMastery',
+    name: 'Blizzard Mastery', description: 'Stronger slow/damage + lower cooldown', emoji: '❄️',
+    costBase: 22, costMultiplier: 1.7, maxLevel: 10,
   },
   lightningBoltDamage: {
     id: 'lightningBoltDamage', category: 'lightningMage', field: 'lightningBoltDamage',
@@ -110,30 +85,10 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Lightning Cast', description: '-8% cast interval per level', emoji: '⚡',
     costBase: 12, costMultiplier: 1.65, maxLevel: 10,
   },
-  lightningMageMaxMp: {
-    id: 'lightningMageMaxMp', category: 'lightningMage', field: 'maxMp',
-    name: 'Lightning MP', description: '+20 max MP per level', emoji: '🔷',
-    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
-  },
-  lightningMageMpRegen: {
-    id: 'lightningMageMpRegen', category: 'lightningMage', field: 'mpRegen',
-    name: 'Lightning Regen', description: '+1 MP/sec per level', emoji: '🌀',
-    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
-  },
-  chainLightningDamage: {
-    id: 'chainLightningDamage', category: 'lightningMage', field: 'chainLightningDamage',
-    name: 'Chain Dmg', description: '+3 Chain Lightning damage per level', emoji: '⚡',
-    costBase: 18, costMultiplier: 1.6, maxLevel: 30,
-  },
-  chainLightningJumps: {
-    id: 'chainLightningJumps', category: 'lightningMage', field: 'chainLightningJumps',
-    name: 'Chain Jumps', description: '+1 chain jump per level', emoji: '🔗',
-    costBase: 40, costMultiplier: 2.0, maxLevel: 3,
-  },
-  chainLightningCooldown: {
-    id: 'chainLightningCooldown', category: 'lightningMage', field: 'chainLightningCooldown',
-    name: 'Chain Cooldown', description: '-1s Chain Lightning cooldown per level', emoji: '⌛',
-    costBase: 30, costMultiplier: 1.8, maxLevel: 4,
+  chainLightningMastery: {
+    id: 'chainLightningMastery', category: 'lightningMage', field: 'chainLightningMastery',
+    name: 'Chain Lightning Mastery', description: 'More damage/jumps + lower cooldown', emoji: '⚡',
+    costBase: 22, costMultiplier: 1.7, maxLevel: 10,
   },
   arrowDamage: {
     id: 'arrowDamage', category: 'archer', field: 'arrowDamage',
@@ -145,30 +100,10 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Arrow Speed', description: '-8% attack interval per level', emoji: '⚡',
     costBase: 12, costMultiplier: 1.65, maxLevel: 10,
   },
-  archerMaxMp: {
-    id: 'archerMaxMp', category: 'archer', field: 'maxMp',
-    name: 'Archer MP', description: '+20 max MP per level', emoji: '🔷',
-    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
-  },
-  archerMpRegen: {
-    id: 'archerMpRegen', category: 'archer', field: 'mpRegen',
-    name: 'Archer Regen', description: '+1 MP/sec per level', emoji: '🌀',
-    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
-  },
-  piercingShotDamage: {
-    id: 'piercingShotDamage', category: 'archer', field: 'piercingShotDamage',
-    name: 'Pierce Dmg', description: '+4 Piercing Shot damage per level', emoji: '🏹',
-    costBase: 18, costMultiplier: 1.6, maxLevel: 30,
-  },
-  piercingShotWidth: {
-    id: 'piercingShotWidth', category: 'archer', field: 'piercingShotWidth',
-    name: 'Pierce Width', description: '+12 band width per level', emoji: '↕️',
-    costBase: 20, costMultiplier: 1.6, maxLevel: 20,
-  },
-  piercingShotCooldown: {
-    id: 'piercingShotCooldown', category: 'archer', field: 'piercingShotCooldown',
-    name: 'Pierce Cooldown', description: '-1s Piercing Shot cooldown per level', emoji: '⌛',
-    costBase: 30, costMultiplier: 1.8, maxLevel: 4,
+  piercingShotMastery: {
+    id: 'piercingShotMastery', category: 'archer', field: 'piercingShotMastery',
+    name: 'Piercing Shot Mastery', description: 'More damage/width + lower cooldown', emoji: '🏹',
+    costBase: 22, costMultiplier: 1.7, maxLevel: 10,
   },
   shadowBoltDamage: {
     id: 'shadowBoltDamage', category: 'necromancer', field: 'shadowBoltDamage',
@@ -180,35 +115,10 @@ export const UPGRADES: Record<string, UpgradeDefinition> = {
     name: 'Shadow Cast', description: '-8% cast interval per level', emoji: '⚡',
     costBase: 12, costMultiplier: 1.65, maxLevel: 10,
   },
-  necromancerMaxMp: {
-    id: 'necromancerMaxMp', category: 'necromancer', field: 'maxMp',
-    name: 'Necro MP', description: '+20 max MP per level', emoji: '🔷',
-    costBase: 14, costMultiplier: 1.6, maxLevel: 30,
-  },
-  necromancerMpRegen: {
-    id: 'necromancerMpRegen', category: 'necromancer', field: 'mpRegen',
-    name: 'Necro Regen', description: '+1 MP/sec per level', emoji: '🌀',
-    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
-  },
-  raiseSkeletonHp: {
-    id: 'raiseSkeletonHp', category: 'necromancer', field: 'raiseSkeletonHp',
-    name: 'Skeleton HP', description: '+20 skeleton HP per level', emoji: '🦴',
-    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
-  },
-  raiseSkeletonDuration: {
-    id: 'raiseSkeletonDuration', category: 'necromancer', field: 'raiseSkeletonDuration',
-    name: 'Skeleton Time', description: '+1s skeleton duration per level', emoji: '⏳',
-    costBase: 18, costMultiplier: 1.6, maxLevel: 20,
-  },
-  raiseSkeletonDamage: {
-    id: 'raiseSkeletonDamage', category: 'necromancer', field: 'raiseSkeletonDamage',
-    name: 'Skeleton Dmg', description: '+2 skeleton melee damage per level', emoji: '💀',
-    costBase: 16, costMultiplier: 1.6, maxLevel: 30,
-  },
-  raiseSkeletonCooldown: {
-    id: 'raiseSkeletonCooldown', category: 'necromancer', field: 'raiseSkeletonCooldown',
-    name: 'Skeleton CD', description: '-1s Raise Skeleton cooldown per level', emoji: '⌛',
-    costBase: 30, costMultiplier: 1.8, maxLevel: 4,
+  raiseSkeletonMastery: {
+    id: 'raiseSkeletonMastery', category: 'necromancer', field: 'raiseSkeletonMastery',
+    name: 'Raise Skeleton Mastery', description: 'Tougher skeleton + lower cooldown', emoji: '💀',
+    costBase: 22, costMultiplier: 1.7, maxLevel: 10,
   },
 }
 
@@ -221,9 +131,9 @@ export interface UpgradeSection {
 export const UPGRADE_SECTIONS: UpgradeSection[] = [
   { label: '🏰 Castle', upgradeIds: ['castleMaxHp', 'castleArmor', 'castleStartingShield', 'castleRegen', 'castleWaveRepair', 'castleSpikes'] },
   { label: '🧙 Fire Mage', upgradeIds: ['fireballDamage', 'fireballCastSpeed', 'fireMageMaxMp', 'fireMageMpRegen'] },
-  { label: '🥶 Ice Mage', upgradeIds: ['iceShardDamage', 'iceShardCastSpeed', 'iceMageMaxMp', 'iceMageMpRegen', 'blizzardSlow', 'blizzardDuration', 'blizzardDamage', 'blizzardCooldown'], requiresRecruit: 'iceMage' },
-  { label: '⚡ Lightning Mage', upgradeIds: ['lightningBoltDamage', 'lightningBoltCastSpeed', 'lightningMageMaxMp', 'lightningMageMpRegen', 'chainLightningDamage', 'chainLightningJumps', 'chainLightningCooldown'], requiresRecruit: 'lightningMage' },
-  { label: '🏹 Archer', upgradeIds: ['arrowDamage', 'arrowAttackSpeed', 'archerMaxMp', 'archerMpRegen', 'piercingShotDamage', 'piercingShotWidth', 'piercingShotCooldown'], requiresRecruit: 'archer' },
-  { label: '☠️ Necromancer', upgradeIds: ['shadowBoltDamage', 'shadowBoltCastSpeed', 'necromancerMaxMp', 'necromancerMpRegen', 'raiseSkeletonHp', 'raiseSkeletonDuration', 'raiseSkeletonDamage', 'raiseSkeletonCooldown'], requiresRecruit: 'necromancer' },
+  { label: '🥶 Ice Mage', upgradeIds: ['iceShardDamage', 'iceShardCastSpeed', 'blizzardMastery'], requiresRecruit: 'iceMage' },
+  { label: '⚡ Lightning Mage', upgradeIds: ['lightningBoltDamage', 'lightningBoltCastSpeed', 'chainLightningMastery'], requiresRecruit: 'lightningMage' },
+  { label: '🏹 Archer', upgradeIds: ['arrowDamage', 'arrowAttackSpeed', 'piercingShotMastery'], requiresRecruit: 'archer' },
+  { label: '☠️ Necromancer', upgradeIds: ['shadowBoltDamage', 'shadowBoltCastSpeed', 'raiseSkeletonMastery'], requiresRecruit: 'necromancer' },
   { label: '💧 Global', upgradeIds: ['blueManaGain'] },
 ]

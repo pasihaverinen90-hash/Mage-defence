@@ -518,8 +518,19 @@ export class RunScene extends Phaser.Scene {
     switch (def.effectKind) {
       case 'fireWall': skill.cooldownTimer = def.cooldownSec; this.spawnFireWall(x); break
       case 'firestorm': skill.cooldownTimer = def.cooldownSec; this.spawnFirestorm(x, y); break
-      case 'fireElemental': skill.cooldownTimer = def.cooldownSec; this.spawnFireElemental(x, y); break
-      case 'raiseSkeleton': skill.cooldownTimer = def.cooldownSec; this.spawnSkeleton(x, y); break
+      case 'fireElemental': {
+        const fe = UpgradeSystem.resolveFireElemental(gameState.upgrades.defenders.fireMage)
+        skill.cooldownTimer = fe.cooldownSec
+        this.spawnFireElemental(x, y, fe)
+        break
+      }
+      case 'raiseSkeleton': {
+        // Raise Skeleton Mastery lowers the recast cooldown (resolver-driven).
+        const s = UpgradeSystem.resolveRaiseSkeleton(gameState.upgrades.defenders.necromancer)
+        skill.cooldownTimer = s.cooldownSec
+        this.spawnSkeleton(x, y, s)
+        break
+      }
       case 'chainLightning': {
         const first = this.getClosestEnemy()
         if (!first) return false
@@ -552,19 +563,30 @@ export class RunScene extends Phaser.Scene {
   }
 
   // ── Recruit skill auto-cast (never the hero / Fire Mage) ─
+  // Recruits have NO MP: a skill fires purely on cooldown + a valid in-range
+  // target. The hero keeps the MP-gated manual path (skillReady / onSkillButton).
   private tryAutoCastSkills(defender: DefenderRuntimeState) {
     for (const skill of defender.skills) {
-      if (this.tryAutoCast(defender, skill)) break // at most one cast per defender per frame
+      if (this.canAutoUseRecruitSkill(defender, skill)) {
+        this.useRecruitSkill(defender, skill)
+        break // at most one cast per defender per frame
+      }
     }
   }
 
-  private tryAutoCast(defender: DefenderRuntimeState, skill: SkillRuntimeState): boolean {
-    if (!this.skillReady(defender, skill)) return false
+  private canAutoUseRecruitSkill(defender: DefenderRuntimeState, skill: SkillRuntimeState): boolean {
+    if (skill.cooldownTimer > 0) return false // cooldown only — no MP requirement
     const range = skill.definition.range ?? 700
-    if (!this.enemyInRange(defender, range)) return false
-    if (skill.definition.targeting === 'none') return this.fireSkill(defender, skill, 0, 0)
+    return this.enemyInRange(defender, range)
+  }
+
+  private useRecruitSkill(defender: DefenderRuntimeState, skill: SkillRuntimeState) {
+    if (skill.definition.targeting === 'none') {
+      this.fireSkill(defender, skill, 0, 0)
+      return
+    }
     const pos = this.autoSummonPosition() // placement recruit skill (Raise Skeleton)
-    return this.fireSkill(defender, skill, pos.x, pos.y)
+    this.fireSkill(defender, skill, pos.x, pos.y)
   }
 
   private enemyInRange(defender: DefenderRuntimeState, range: number): boolean {
@@ -813,7 +835,8 @@ export class RunScene extends Phaser.Scene {
   // Structured as a loop so tower recruits drop in here later.
   private updateDefenders(dt: number) {
     for (const d of this.run.defenders) {
-      if (d.mp < d.maxMp) d.mp = Math.min(d.maxMp, d.mp + d.mpRegen * dt)
+      // Only the Fire Mage hero uses MP; recruits run on cooldowns alone.
+      if (d.slotId === 'hero' && d.mp < d.maxMp) d.mp = Math.min(d.maxMp, d.mp + d.mpRegen * dt)
       for (const skill of d.skills) {
         if (skill.cooldownTimer > 0) skill.cooldownTimer = Math.max(0, skill.cooldownTimer - dt)
       }
@@ -947,14 +970,18 @@ export class RunScene extends Phaser.Scene {
   }
 
   // ── Summons (Fire Elemental / Skeleton) ──────────────────
-  private spawnFireElemental(x: number, y: number) {
-    const fe = UpgradeSystem.resolveFireElemental(gameState.upgrades.defenders.fireMage)
-    this.addSummon('fireElemental', '🌋', 0xea580c, x, y, fe)
+  private spawnFireElemental(
+    x: number, y: number,
+    stats: SummonStats = UpgradeSystem.resolveFireElemental(gameState.upgrades.defenders.fireMage),
+  ) {
+    this.addSummon('fireElemental', '🌋', 0xea580c, x, y, stats)
   }
 
-  private spawnSkeleton(x: number, y: number) {
-    const s = UpgradeSystem.resolveRaiseSkeleton(gameState.upgrades.defenders.necromancer)
-    this.addSummon('skeleton', '💀', 0x6b7280, x, y, s)
+  private spawnSkeleton(
+    x: number, y: number,
+    stats: SummonStats = UpgradeSystem.resolveRaiseSkeleton(gameState.upgrades.defenders.necromancer),
+  ) {
+    this.addSummon('skeleton', '💀', 0x6b7280, x, y, stats)
   }
 
   // Shared summon spawn/view — kind + emoji + body colour are the only differences.

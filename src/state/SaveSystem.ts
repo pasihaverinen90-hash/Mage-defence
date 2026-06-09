@@ -1,7 +1,7 @@
 import type { SaveData } from '../types/game'
 
 const SAVE_KEY = 'mage_arena_save'
-const SAVE_VERSION = 2
+const SAVE_VERSION = 3
 
 export function defaultSave(): SaveData {
   return {
@@ -32,40 +32,22 @@ export function defaultSave(): SaveData {
         iceMage: {
           iceShardDamage: 0,
           iceShardCastSpeed: 0,
-          maxMp: 0,
-          mpRegen: 0,
-          blizzardDamage: 0,
-          blizzardDuration: 0,
-          blizzardSlow: 0,
-          blizzardCooldown: 0,
+          blizzardMastery: 0,
         },
         lightningMage: {
           lightningBoltDamage: 0,
           lightningBoltCastSpeed: 0,
-          maxMp: 0,
-          mpRegen: 0,
-          chainLightningDamage: 0,
-          chainLightningJumps: 0,
-          chainLightningCooldown: 0,
+          chainLightningMastery: 0,
         },
         archer: {
           arrowDamage: 0,
           arrowAttackSpeed: 0,
-          maxMp: 0,
-          mpRegen: 0,
-          piercingShotDamage: 0,
-          piercingShotWidth: 0,
-          piercingShotCooldown: 0,
+          piercingShotMastery: 0,
         },
         necromancer: {
           shadowBoltDamage: 0,
           shadowBoltCastSpeed: 0,
-          maxMp: 0,
-          mpRegen: 0,
-          raiseSkeletonHp: 0,
-          raiseSkeletonDuration: 0,
-          raiseSkeletonDamage: 0,
-          raiseSkeletonCooldown: 0,
+          raiseSkeletonMastery: 0,
         },
       },
     },
@@ -129,6 +111,35 @@ function migrateV1toV2(old: Record<string, unknown>): SaveData {
   return data
 }
 
+// Safely read a nested object from a raw save (returns {} if missing/wrong type).
+function pluckObj(o: unknown, key: string): Record<string, unknown> {
+  if (o && typeof o === 'object' && !Array.isArray(o)) {
+    const v = (o as Record<string, unknown>)[key]
+    if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>
+  }
+  return {}
+}
+
+// v2→v3: recruits lost MP + their separate per-skill upgrades in favour of one
+// "mastery" level. Seed each mastery from the highest old skill-upgrade level so
+// existing investment is preserved (Option A), clamped to the mastery cap. MP
+// upgrade levels are intentionally dropped (recruits no longer use MP).
+function deriveRecruitMastery(data: SaveData, raw: Record<string, unknown>): void {
+  const defenders = pluckObj(pluckObj(raw, 'upgrades'), 'defenders')
+  const cap = 10 // matches blizzard/chain/pierce/raise Mastery maxLevel
+  const topLevel = (recruit: string, fields: string[]): number => {
+    const rec = pluckObj(defenders, recruit)
+    let best = 0
+    for (const f of fields) best = Math.max(best, num(rec[f]))
+    return Math.min(cap, best)
+  }
+  const d = data.upgrades.defenders
+  d.iceMage.blizzardMastery = topLevel('iceMage', ['blizzardSlow', 'blizzardDuration', 'blizzardDamage', 'blizzardCooldown'])
+  d.lightningMage.chainLightningMastery = topLevel('lightningMage', ['chainLightningDamage', 'chainLightningJumps', 'chainLightningCooldown'])
+  d.archer.piercingShotMastery = topLevel('archer', ['piercingShotDamage', 'piercingShotWidth', 'piercingShotCooldown'])
+  d.necromancer.raiseSkeletonMastery = topLevel('necromancer', ['raiseSkeletonHp', 'raiseSkeletonDuration', 'raiseSkeletonDamage', 'raiseSkeletonCooldown'])
+}
+
 // Bring any parsed save object up to the current version + shape. A version
 // bump never wipes; only a non-object (corrupt) input yields a default save.
 export function migrate(parsed: unknown): SaveData {
@@ -141,6 +152,7 @@ export function migrate(parsed: unknown): SaveData {
   const data = version < 2
     ? migrateV1toV2(obj)
     : mergeShaped(defaultSave(), obj) // already v2+: fill any newly added fields
+  if (version < 3) deriveRecruitMastery(data, obj) // fold old recruit skill levels into mastery
   data.version = SAVE_VERSION
   return data
 }

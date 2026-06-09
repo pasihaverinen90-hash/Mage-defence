@@ -40,15 +40,14 @@ export const BALANCE = {
       aoeRadius: 75, // Fire Bash reach
     },
   },
+  // Recruits have no MP — their one auto skill scales off a single "mastery"
+  // level (cooldown + main effect together). mastery*PerLevel live with each skill.
   iceMage: {
     baseDamage: 8,
     baseCastInterval: 1.7, // seconds
-    baseMaxMp: 80,
-    baseMpRegen: 4, // MP/sec
     slowFactor: 0.6, // Ice Shard slows the target to 60% speed
     slowDurationSec: 1.5,
     blizzard: {
-      mpCost: 35,
       cooldownSec: 14,
       minCooldownSec: 6,
       baseDurationSec: 5,
@@ -57,15 +56,16 @@ export const BALANCE = {
       baseTickDamage: 2, // light DoT (control skill, not burst)
       tickInterval: 0.5,
       range: 700, // auto-cast when enemy pressure is within this distance
+      masterySlowPerLevel: 0.025,    // +2.5% slow per mastery (capped at maxSlowPercent)
+      masteryDurationPerLevel: 0.4,  // +0.4s duration per mastery
+      masteryDamagePerLevel: 0.6,    // +0.6 tick damage per mastery
+      masteryCooldownPerLevel: 0.8,  // -0.8s cooldown per mastery
     },
   },
   lightningMage: {
     baseDamage: 6, // lower than Fire Mage but faster
     baseCastInterval: 1.0, // seconds (fast)
-    baseMaxMp: 90,
-    baseMpRegen: 5, // MP/sec
     chainLightning: {
-      mpCost: 40,
       cooldownSec: 6,
       minCooldownSec: 2,
       baseDamage: 14,
@@ -73,29 +73,29 @@ export const BALANCE = {
       jumpRadius: 90,
       falloff: 0.6, // each jump deals 60% of the previous hit
       range: 700, // auto-cast when an enemy is within this distance
+      masteryDamagePerLevel: 2.5,    // +2.5 damage per mastery
+      masteryCooldownPerLevel: 0.4,  // -0.4s cooldown per mastery
+      masteryJumpsEvery: 4,          // +1 extra jump every 4 mastery levels
     },
   },
   archer: {
     baseDamage: 7, // single-target, lower per hit but fast
     baseCastInterval: 0.8, // seconds (fastest defender)
-    baseMaxMp: 85,
-    baseMpRegen: 5, // MP/sec
     piercingShot: {
-      mpCost: 35,
       cooldownSec: 7,
       minCooldownSec: 3,
       baseDamage: 20,
       baseWidth: 40, // vertical band thickness (hits enemies near the target's Y)
       range: 760, // auto-cast when an enemy is within this distance
+      masteryDamagePerLevel: 3,      // +3 damage per mastery
+      masteryWidthPerLevel: 6,       // +6 band width per mastery
+      masteryCooldownPerLevel: 0.4,  // -0.4s cooldown per mastery
     },
   },
   necromancer: {
     baseDamage: 11, // moderate, slower than Archer
     baseCastInterval: 1.6, // seconds (slow)
-    baseMaxMp: 95,
-    baseMpRegen: 4, // MP/sec
     raiseSkeleton: {
-      mpCost: 45,
       cooldownSec: 10,
       minCooldownSec: 4,
       baseHp: 60,
@@ -105,6 +105,10 @@ export const BALANCE = {
       tauntRadius: 90,
       aoeRadius: 55,
       range: 700, // auto-cast when enemy pressure is within this distance
+      masteryHpPerLevel: 12,         // +12 skeleton HP per mastery
+      masteryDamagePerLevel: 1.5,    // +1.5 melee damage per mastery
+      masteryDurationPerLevel: 0.5,  // +0.5s duration per mastery
+      masteryCooldownPerLevel: 0.6,  // -0.6s cooldown per mastery
     },
   },
   upgrades: {
@@ -130,34 +134,12 @@ export const BALANCE = {
     fireElementalHealthPerLevel: 30,   // +30 HP per level
     iceShardDamagePerLevel: 0.15,      // +15% Ice Shard damage per level
     iceShardCastSpeedPerLevel: 0.08,   // -8% cast interval per level
-    iceMageMaxMpPerLevel: 20,          // +20 max MP per level
-    iceMageMpRegenPerLevel: 1,         // +1 MP/sec per level
-    blizzardDamagePerLevel: 1,         // +1 Blizzard tick damage per level
-    blizzardDurationPerLevel: 0.5,     // +0.5s Blizzard duration per level
-    blizzardSlowPerLevel: 0.03,        // +3% Blizzard slow per level (capped)
-    blizzardCooldownPerLevel: 1,       // -1s Blizzard cooldown per level
     lightningBoltDamagePerLevel: 0.15,    // +15% Lightning Bolt damage per level
     lightningBoltCastSpeedPerLevel: 0.08, // -8% cast interval per level
-    lightningMageMaxMpPerLevel: 20,       // +20 max MP per level
-    lightningMageMpRegenPerLevel: 1,      // +1 MP/sec per level
-    chainLightningDamagePerLevel: 3,      // +3 Chain Lightning damage per level
-    chainLightningJumpsPerLevel: 1,       // +1 jump per level
-    chainLightningCooldownPerLevel: 1,    // -1s cooldown per level
     arrowDamagePerLevel: 0.15,            // +15% Arrow Shot damage per level
     arrowAttackSpeedPerLevel: 0.08,       // -8% attack interval per level
-    archerMaxMpPerLevel: 20,              // +20 max MP per level
-    archerMpRegenPerLevel: 1,             // +1 MP/sec per level
-    piercingShotDamagePerLevel: 4,        // +4 Piercing Shot damage per level
-    piercingShotWidthPerLevel: 12,        // +12 band width per level
-    piercingShotCooldownPerLevel: 1,      // -1s cooldown per level
     shadowBoltDamagePerLevel: 0.15,       // +15% Shadow Bolt damage per level
     shadowBoltCastSpeedPerLevel: 0.08,    // -8% cast interval per level
-    necromancerMaxMpPerLevel: 20,         // +20 max MP per level
-    necromancerMpRegenPerLevel: 1,        // +1 MP/sec per level
-    raiseSkeletonHpPerLevel: 20,          // +20 skeleton HP per level
-    raiseSkeletonDurationPerLevel: 1,     // +1s skeleton duration per level
-    raiseSkeletonDamagePerLevel: 2,       // +2 skeleton melee damage per level
-    raiseSkeletonCooldownPerLevel: 1,     // -1s cooldown per level
     blueManaGainPerLevel: 0.15,        // +15% mana reward per level
   },
   reward: {

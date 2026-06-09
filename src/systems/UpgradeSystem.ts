@@ -77,24 +77,21 @@ export const UpgradeSystem = {
     return {
       damage: Math.floor(b.baseDamage * damageMult),
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
-      maxMp: b.baseMaxMp + levels.maxMp * u.iceMageMaxMpPerLevel,
-      mpRegen: b.baseMpRegen + levels.mpRegen * u.iceMageMpRegenPerLevel,
+      maxMp: 0, // recruits have no MP
+      mpRegen: 0,
     }
   },
 
   resolveBlizzard(levels: IceMageUpgradeLevels): BlizzardStats {
     const b = BALANCE.iceMage.blizzard
-    const u = BALANCE.upgrades
-    const slowPercent = Math.min(
-      b.maxSlowPercent,
-      b.baseSlowPercent + levels.blizzardSlow * u.blizzardSlowPerLevel,
-    )
+    const m = levels.blizzardMastery
+    const slowPercent = Math.min(b.maxSlowPercent, b.baseSlowPercent + m * b.masterySlowPerLevel)
     return {
-      durationSec: b.baseDurationSec + levels.blizzardDuration * u.blizzardDurationPerLevel,
+      durationSec: b.baseDurationSec + m * b.masteryDurationPerLevel,
       slowFactor: 1 - slowPercent,
-      tickDamage: b.baseTickDamage + levels.blizzardDamage * u.blizzardDamagePerLevel,
+      tickDamage: b.baseTickDamage + m * b.masteryDamagePerLevel,
       tickInterval: b.tickInterval,
-      cooldownSec: Math.max(b.minCooldownSec, b.cooldownSec - levels.blizzardCooldown * u.blizzardCooldownPerLevel),
+      cooldownSec: Math.max(b.minCooldownSec, b.cooldownSec - m * b.masteryCooldownPerLevel),
     }
   },
 
@@ -106,23 +103,20 @@ export const UpgradeSystem = {
     return {
       damage: Math.floor(b.baseDamage * damageMult),
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
-      maxMp: b.baseMaxMp + levels.maxMp * u.lightningMageMaxMpPerLevel,
-      mpRegen: b.baseMpRegen + levels.mpRegen * u.lightningMageMpRegenPerLevel,
+      maxMp: 0, // recruits have no MP
+      mpRegen: 0,
     }
   },
 
   resolveChainLightning(levels: LightningMageUpgradeLevels): ChainLightningStats {
     const b = BALANCE.lightningMage.chainLightning
-    const u = BALANCE.upgrades
+    const m = levels.chainLightningMastery
     return {
-      damage: b.baseDamage + levels.chainLightningDamage * u.chainLightningDamagePerLevel,
-      jumps: b.baseJumps + levels.chainLightningJumps * u.chainLightningJumpsPerLevel,
+      damage: b.baseDamage + m * b.masteryDamagePerLevel,
+      jumps: b.baseJumps + Math.floor(m / b.masteryJumpsEvery),
       jumpRadius: b.jumpRadius,
       falloff: b.falloff,
-      cooldownSec: Math.max(
-        b.minCooldownSec,
-        b.cooldownSec - levels.chainLightningCooldown * u.chainLightningCooldownPerLevel,
-      ),
+      cooldownSec: Math.max(b.minCooldownSec, b.cooldownSec - m * b.masteryCooldownPerLevel),
     }
   },
 
@@ -134,21 +128,18 @@ export const UpgradeSystem = {
     return {
       damage: Math.floor(b.baseDamage * damageMult),
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
-      maxMp: b.baseMaxMp + levels.maxMp * u.archerMaxMpPerLevel,
-      mpRegen: b.baseMpRegen + levels.mpRegen * u.archerMpRegenPerLevel,
+      maxMp: 0, // recruits have no MP
+      mpRegen: 0,
     }
   },
 
   resolvePiercingShot(levels: ArcherUpgradeLevels): PiercingShotStats {
     const b = BALANCE.archer.piercingShot
-    const u = BALANCE.upgrades
+    const m = levels.piercingShotMastery
     return {
-      damage: b.baseDamage + levels.piercingShotDamage * u.piercingShotDamagePerLevel,
-      width: b.baseWidth + levels.piercingShotWidth * u.piercingShotWidthPerLevel,
-      cooldownSec: Math.max(
-        b.minCooldownSec,
-        b.cooldownSec - levels.piercingShotCooldown * u.piercingShotCooldownPerLevel,
-      ),
+      damage: b.baseDamage + m * b.masteryDamagePerLevel,
+      width: b.baseWidth + m * b.masteryWidthPerLevel,
+      cooldownSec: Math.max(b.minCooldownSec, b.cooldownSec - m * b.masteryCooldownPerLevel),
     }
   },
 
@@ -160,21 +151,22 @@ export const UpgradeSystem = {
     return {
       damage: Math.floor(b.baseDamage * damageMult),
       castInterval: parseFloat((b.baseCastInterval * intervalMult).toFixed(2)),
-      maxMp: b.baseMaxMp + levels.maxMp * u.necromancerMaxMpPerLevel,
-      mpRegen: b.baseMpRegen + levels.mpRegen * u.necromancerMpRegenPerLevel,
+      maxMp: 0, // recruits have no MP
+      mpRegen: 0,
     }
   },
 
   resolveRaiseSkeleton(levels: NecromancerUpgradeLevels): SummonStats {
     const b = BALANCE.necromancer.raiseSkeleton
-    const u = BALANCE.upgrades
+    const m = levels.raiseSkeletonMastery
     return {
-      hp: b.baseHp + levels.raiseSkeletonHp * u.raiseSkeletonHpPerLevel,
-      durationSec: b.baseDurationSec + levels.raiseSkeletonDuration * u.raiseSkeletonDurationPerLevel,
-      aoeDamage: b.baseAoeDamage + levels.raiseSkeletonDamage * u.raiseSkeletonDamagePerLevel,
+      hp: b.baseHp + m * b.masteryHpPerLevel,
+      durationSec: b.baseDurationSec + m * b.masteryDurationPerLevel,
+      aoeDamage: b.baseAoeDamage + m * b.masteryDamagePerLevel,
       aoeRadius: b.aoeRadius,
       tauntRadius: b.tauntRadius,
       aoeInterval: b.aoeInterval,
+      cooldownSec: Math.max(b.minCooldownSec, b.cooldownSec - m * b.masteryCooldownPerLevel),
     }
   },
 
@@ -214,6 +206,7 @@ export const UpgradeSystem = {
       aoeRadius: b.aoeRadius,
       tauntRadius: b.tauntRadius,
       aoeInterval: b.aoeInterval,
+      cooldownSec: b.cooldownSec, // Fire Mage summon — static (unchanged)
     }
   },
 
